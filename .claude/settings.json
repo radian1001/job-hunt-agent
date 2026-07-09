@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__tinyfish__search",
+      "mcp__tinyfish__fetch_content",
+      "mcp__tinyfish__run_big_search",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File scripts/send-telegram.ps1:*)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\send-telegram.ps1:*)",
+      "Bash(python scripts/db.py:*)",
+      "Bash(python scripts\\db.py:*)",
+      "Read(./**)",
+      "Write(./digests/**)",
+      "Write(./reports/**)",
+      "Write(./applications/**)",
+      "Write(./state/**)",
+      "Edit(./state/**)"
+    ],
+    "deny": []
+  }
+}
