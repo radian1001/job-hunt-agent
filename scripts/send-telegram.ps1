@@ -34,6 +34,9 @@ if ($DryRun) {
     exit 0
 }
 
+# PowerShell 5.1 may default to TLS 1.0; Telegram API requires TLS 1.2+
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
 $uri = "https://api.telegram.org/bot$($config.bot_token)/sendMessage"
 $body = @{
     chat_id = $config.chat_id
