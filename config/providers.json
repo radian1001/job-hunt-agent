@@ -1,0 +1,60 @@
+{
+  "providers": [
+    {
+      "id": "careers_page",
+      "enabled": true,
+      "kind": "careers_page",
+      "description": "Favorite companies: fetch each URL in config/favorites.txt with tinyfish fetch_content and extract every posting from the rendered page. source field = 'careers_page'."
+    },
+    {
+      "id": "tinyfish_search",
+      "enabled": true,
+      "kind": "search",
+      "query_suffix": "job opening apply",
+      "description": "Dynamic search: run each query in config/searches.txt (append query_suffix) through tinyfish search; results that link to individual job postings are candidates. Log each query via db.py log-search. source field = 'tinyfish_search'."
+    },
+    {
+      "id": "greenhouse",
+      "enabled": true,
+      "kind": "ats_pattern",
+      "url_pattern": "https://boards.greenhouse.io/{company_slug}",
+      "description": "Favorites whose careers URL matches boards.greenhouse.io: the board page lists all open roles with direct links; extraction is highly reliable. source field = 'greenhouse'."
+    },
+    {
+      "id": "lever",
+      "enabled": true,
+      "kind": "ats_pattern",
+      "url_pattern": "https://jobs.lever.co/{company_slug}",
+      "description": "Favorites whose careers URL matches jobs.lever.co: board page lists all roles. source field = 'lever'."
+    },
+    {
+      "id": "ashby",
+      "enabled": true,
+      "kind": "ats_pattern",
+      "url_pattern": "https://jobs.ashbyhq.com/{company_slug}",
+      "description": "Favorites whose careers URL matches jobs.ashbyhq.com: board page lists all roles. source field = 'ashby'."
+    },
+    {
+      "id": "remoteok",
+      "enabled": false,
+      "kind": "board_api",
+      "entry_url": "https://remoteok.com/api",
+      "description": "Public JSON API returning an array of jobs (fields: company, position, location, url, tags). Fetch entry_url once per scan, filter to postings matching the resume's stack. source field = 'remoteok'. Enable if you want remote roles."
+    },
+    {
+      "id": "yc_directory",
+      "enabled": false,
+      "kind": "directory",
+      "entry_url": "https://www.ycombinator.com/jobs",
+      "description": "YC startup jobs directory. Used by /discover-startups to find new companies; can also be scanned daily if enabled. source field = 'yc_directory'."
+    },
+    {
+      "id": "wellfound",
+      "enabled": false,
+      "kind": "directory",
+      "entry_url": "https://wellfound.com/jobs",
+      "description": "Wellfound (AngelList Talent). Often login-walled; enable only after verifying fetch_content can render listings. source field = 'wellfound'."
+    }
+  ],
+  "notes": "To add a provider (LinkedIn, Indeed, Naukri, Cutshort, Hirist, ...): append an entry with a unique id, set kind to one of careers_page|search|ats_pattern|board_api|directory, and describe how to discover postings from it. Skills iterate enabled providers generically — no skill changes needed. To remove one, set enabled: false."
+}
