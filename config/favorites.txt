@@ -1,0 +1,6 @@
+# Favorite companies: one careers-page URL per line. Lines starting with # are ignored.
+# Replace these examples with your own 15-30 target companies.
+# Greenhouse/Lever/Ashby board URLs work great here (e.g. https://boards.greenhouse.io/<company>).
+https://www.postman.com/company/careers/open-positions/
+https://razorpay.com/jobs/
+https://www.atlassian.com/company/careers/all-jobs

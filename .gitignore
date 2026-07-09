@@ -1,0 +1,6 @@
+config/telegram.json
+config/resume.md
+logs/
+applications/
+state/
+__pycache__/
