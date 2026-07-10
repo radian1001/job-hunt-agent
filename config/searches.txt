@@ -1,6 +1,4 @@
 # Dynamic search queries: one per line. Lines starting with # are ignored.
 # The daily scan runs each through TinyFish search; weekly discovery also uses these
-# to find new companies. Replace with queries matching your stack and level.
-Java Backend Engineer India
-Spring Boot Developer hiring
-Software Engineer 0-2 years India
+# to find new companies. Tailored for Java/Spring Boot/AWS backend, 0-2 YOE, India.
+Java Backend Engineer 0-2 years India
