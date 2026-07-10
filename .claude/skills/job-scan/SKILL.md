@@ -19,40 +19,47 @@ SQLite (`scripts/db.py`) is the source of truth; the digest markdown is a report
 - `config/favorites.txt` and `config/searches.txt` — inputs for the careers_page /
   ats_pattern and search providers. Skip blank lines and `#` comments.
 
-## 2. Discovery + Extraction (per enabled provider)
-For each enabled provider, follow its `description`:
+## 2. Discovery + Extraction (per enabled provider) — build the candidate list
+For each enabled provider, follow its `description`. This stage only LISTS postings
+(cheap); it does not persist or score anything yet:
 - `careers_page` / `ats_pattern` kinds: fetch each favorites.txt URL with the TinyFish
   `fetch_content` tool; extract every individual posting (title + absolute URL).
 - `search` kind: run each searches.txt query (plus the provider's `query_suffix`)
   through the TinyFish `search` tool; collect result links that are individual job
   postings. After processing each query, log it:
   `python scripts/db.py log-search --provider <id> --query "<q>" --results <found> --new <new>`
+  (report `--new` after Section 3-4 finishes, as the count of these results that
+  turned out to be new-and-scored.)
 - `board_api` / `directory` kinds: fetch the provider's `entry_url` and extract
   postings per its description.
 If one page/query fails, note it and continue — never abort the whole scan for one
-bad source. Cap total posting-detail fetches at 25 per run to bound cost.
+bad source. Collect all candidates into one list; remember the total for the digest's
+"scanned" count.
 
-## 3. Normalization + Storage (dedup happens here)
-For each extracted posting, build canonical job JSON per `docs/job-schema.md`
-(set `source` = the provider id; include `company_info` with whatever the page
-states — funding stage, size, industry, remote policy, product-company flag).
-Write it to `state/tmp/job-<n>.json`, then:
+## 3+4. Persist, dedup, and rank — ONE loop, capped at 25 NEW jobs
+Process candidates one at a time. Persistence and ranking happen together so a job is
+only ever recorded as "seen" once it has actually been scored — this guarantees a
+posting that doesn't fit in this run's budget is simply re-discovered and scored on a
+future run, never permanently lost.
 
-    python scripts/db.py add-job --file state/tmp/job-<n>.json
+For each candidate, until you have scored **25 NEW jobs this run** (the cost cap —
+stop the loop once you hit it and leave the rest for a future run):
 
-The output says `"new": true|false` with the fingerprint. `new: false` = already
-seen (company+title+location+source fingerprint) — skip it. NEVER dedupe by URL
-or by your own judgment; the fingerprint is the only identity.
+1. Build canonical job JSON per `docs/job-schema.md` (set `source` = the provider id;
+   include `company_info` with whatever the page states — funding stage, size,
+   industry, remote policy, product-company flag). Write to `state/tmp/job-<n>.json`.
+2. `python scripts/db.py add-job --file state/tmp/job-<n>.json` — the output says
+   `"new": true|false` with the fingerprint. `new: false` = already seen and scored on
+   a prior run — skip to the next candidate (do NOT count it against the 25 cap).
+   NEVER dedupe by URL or by your own judgment; the fingerprint is the only identity.
+3. On `new: true`: fetch the posting URL with `fetch_content` to get the full JD,
+   cache it — `python scripts/db.py cache-jd --fingerprint <fp> --file state/tmp/jd-<fp>.md` —
+   then score it per `scoring.md` (in this skill's folder) and record via `record-score`.
+   Every score MUST include the matched/missing keyword explanation and recommendation
+   band. This counts as one of the 25.
 
-## 4. Ranking (new jobs only)
-For each `new: true` job: fetch its posting URL with `fetch_content` to get the full
-JD, cache it —
-
-    python scripts/db.py cache-jd --fingerprint <fp> --file state/tmp/jd-<fp>.md
-
-— then score it per `scoring.md` (in this skill's folder) and record via
-`record-score`. Every score MUST include the matched/missing keyword explanation
-and recommendation band.
+Because `add-job` is only ever called at the moment a job is about to be scored,
+"seen" and "scored" stay in lockstep — there are no seen-but-unscored orphans.
 
 ## 5. Digest (human report)
 Write `digests/<today>.md` with ALL new roles ranked by total score, using exactly
@@ -95,4 +102,6 @@ If there are zero new roles, still send: "Job scan <today>: no new roles
 ## Rules
 - NEVER apply to anything or fill any web form. Scan and report only.
 - Never invent postings; only report roles actually present on fetched pages/results.
-- Clean up `state/tmp/` job/score files at the end of the run.
+- Clean up scratch files in `state/tmp/` at the end of the run — the job JSON
+  (`job-*.json`), the JD markdown (`jd-*.md`), and the score JSON (`score-*.json`).
+  The cached JD lives in the DB, so the tmp copy is safe to delete.

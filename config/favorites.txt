@@ -1,5 +1,25 @@
 # Favorite companies: one careers-page URL per line. Lines starting with # are ignored.
 # Tailored for: Java / Spring Boot / AWS backend, 0-2 YOE, India (Hyderabad base).
-# Greenhouse/Lever/Ashby board URLs work great here (e.g. https://boards.greenhouse.io/<company>).
+# Direct Greenhouse/Lever/Ashby board URLs render most reliably in the scan.
+# (The live scan confirmed Razorpay + Postman both use Greenhouse boards.)
+
+# --- Indian product companies (Greenhouse boards where known) ---
+https://job-boards.greenhouse.io/razorpaysoftwareprivatelimited
 https://razorpay.com/jobs/
-https://www.postman.com/company/careers/open-positions/
+https://www.cred.club/careers
+https://www.phonepe.com/careers/job-openings/
+https://groww.in/careers
+https://careers.swiggy.com/
+https://www.zomato.com/careers
+https://www.meesho.io/jobs
+https://juspay.io/careers
+https://zerodha.com/careers/
+https://www.freshworks.com/company/careers/
+https://careers.zoho.com/jobs/Careers
+
+# --- Global product companies with India engineering ---
+https://job-boards.greenhouse.io/postman
+https://www.atlassian.com/company/careers/all-jobs
+https://boards.greenhouse.io/stripe
+https://jobs.lever.co/figma
+https://job-boards.greenhouse.io/databricks
