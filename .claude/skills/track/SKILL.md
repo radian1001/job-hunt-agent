@@ -15,21 +15,31 @@ Argument forms:
 
        python scripts/db.py track --list
 
-   Match the user's company name (case-insensitive substring of the `company` field)
-   or, for `#N`, resolve via the newest digest in `digests/` (its `Fingerprint:` line).
+   Match the user's company name (case-insensitive substring of the `company` field).
+   Note the matched row's current `status` — you need it for the confirmation line in
+   step 4. For `#N`, open the newest digest in `digests/` (filenames sort
+   chronologically), find that digest's `## #N — <Company> — <Role>` heading, and take
+   its `Fingerprint:` line; then find the `track --list` row with that fingerprint. If
+   the `#N` job has no row in `track --list` (never drafted), say "role #N hasn't been
+   drafted yet — run /draft-application N first" and stop.
    If nothing matches, list the tracked companies and stop. If several match, ask
    which one (or in headless mode, pick the most recently updated and say so).
 
-2. Map the user's word to the exact status value: applied→Applied,
+2. Map the user's word (case-insensitive) to the exact status value: applied→Applied,
    interview/interviewing→Interview, rejected/rejection→Rejected, offer→Offer,
    accepted/joined→Accepted, drafted→Drafted. Anything else: list valid statuses
    and stop.
 
-3. Update:
+3. Update. If the user gave EXTRA context beyond the status word, pass it as notes;
+   otherwise OMIT `--notes` entirely (passing an empty `--notes ""` would overwrite
+   any existing note — the flag must be absent to preserve it):
 
-       python scripts/db.py track --fingerprint <fp> --status <Status> --notes "<any extra context the user gave>"
+       python scripts/db.py track --fingerprint <fp> --status <Status>
+       # only when the user added context, e.g. "rejected after HR call":
+       python scripts/db.py track --fingerprint <fp> --status <Status> --notes "after HR call"
 
-4. Confirm in one line: "<Company> — <Role>: <old status> → <new status>".
+4. Confirm in one line, using the current status you noted in step 1:
+   "<Company> — <Role>: <old status> → <new status>".
 
 ## Showing the pipeline
 
