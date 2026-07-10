@@ -66,6 +66,11 @@ direct job-posting URL.
    - Paragraph 1: most relevant experience, mapped to the JD's top requirements.
    - Paragraph 2: why this company specifically.
    - Close: clear ask for a conversation.
+   - GROUNDING (applies here too): every claim about the APPLICANT must trace to
+     `config/resume.md` — do NOT assert tools they use, motivations, or interests the
+     resume doesn't state (e.g. "I already use <product> daily", "passionate about
+     AI"). Knowledge ABOUT the company/role may come from the JD. If the applicant is
+     honestly missing a requirement, say so plainly rather than papering over it.
 
 6. **Write `application_info.txt`**:
    - Application URL (or careers email if that's the mechanism)
