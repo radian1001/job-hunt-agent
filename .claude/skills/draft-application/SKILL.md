@@ -14,14 +14,21 @@ direct job-posting URL.
    - If given a number N: read the newest file in `digests/` (sort by filename, they
      are YYYY-MM-DD.md), find the `## #N — <Company> — <Role>` section, take its
      `Fingerprint:` and `URL:` lines.
-   - If given a URL: use it directly; company name comes from the JD page. Register
-     it so the tracker works: build canonical job JSON per `docs/job-schema.md`,
-     write to `state/tmp/job-adhoc.json`, run
-     `python scripts/db.py add-job --file state/tmp/job-adhoc.json`, and use the
-     returned fingerprint.
+   - If given a URL: there is no cached JD or fingerprint yet, so fetch first, then
+     register. (a) Fetch the URL with the TinyFish `fetch_content` tool to get the JD
+     AND the company name/location from the page; save the JD to
+     `state/tmp/jd-adhoc.md`. (b) Build canonical job JSON per `docs/job-schema.md`
+     using the company/title/location you just read, write to
+     `state/tmp/job-adhoc.json`, run
+     `python scripts/db.py add-job --file state/tmp/job-adhoc.json` and take the
+     returned `fingerprint`. (c) Cache the JD you already fetched:
+     `python scripts/db.py cache-jd --fingerprint <fp> --file state/tmp/jd-adhoc.md`.
+     Now Step 2's `get-jd` will hit the cache — no second fetch. Skip straight to Step 3.
+   - Capture the `<Company>` name from the digest heading (`## #N — <Company> — <Role>`)
+     or the JD page — you need it for the folder slug and the notifications.
    - If N doesn't exist in the digest, tell the user which numbers are available and stop.
 
-2. **Get the full JD — cache first, network second.**
+2. **Get the full JD — cache first, network second.** (Digest-number path.)
 
        python scripts/db.py get-jd --fingerprint <fp>
 
@@ -38,10 +45,20 @@ direct job-posting URL.
 
 4. **Write `resume_<company-slug>.md`**: the user's resume from `config/resume.md`,
    with experience bullets REWORDED to mirror the JD's language and emphasized skills.
-   - HARD RULE: every bullet must be truthful. Rephrase, reorder, and re-emphasize
-     only. NEVER invent experience, projects, employers, titles, dates, or skills not
-     present in `config/resume.md`.
+   - HARD RULE — traceability: EVERY claim in EVERY line (the summary included) must
+     trace back to something already stated in `config/resume.md`. You may only
+     rephrase, reorder, re-emphasize, and use the JD's vocabulary for facts the resume
+     already contains. You may NOT add anything new — not experience, projects,
+     employers, titles, dates, or skills, and NOT motivations, interests, opinions,
+     personality ("curious about…", "passionate about…"), tools, domains, or scale
+     claims the resume does not state. If a sentence introduces a fact or sentiment not
+     present in `config/resume.md`, delete it. When in doubt, keep the original wording.
+   - The Summary is the highest-risk line: rewrite it only by reordering/re-emphasizing
+     the resume's existing summary facts. Do NOT invent a mission statement for the
+     company you're applying to.
    - Put the most JD-relevant bullets first within each job.
+   - Self-check before saving: read your draft against `config/resume.md` line by line;
+     every noun and claim must be findable in the source. Remove any that isn't.
 
 5. **Write `cover_letter_<company-slug>.md`**, one page:
    - Opening: the specific reason THIS role fits (name something concrete from the JD
