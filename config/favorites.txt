@@ -23,3 +23,10 @@ https://www.atlassian.com/company/careers/all-jobs
 https://boards.greenhouse.io/stripe
 https://jobs.lever.co/figma
 https://job-boards.greenhouse.io/databricks
+
+# --- Auto-discovered 2026-07-10 ---
+https://travclan.freshteam.com/jobs  # auto-discovered 2026-07-10
+https://jobs.ashbyhq.com/SigNoz  # auto-discovered 2026-07-10
+https://www.landeed.com/careers  # auto-discovered 2026-07-10
+https://tripjack.keka.com/careers/  # auto-discovered 2026-07-10
+https://gameberry.keka.com/careers  # auto-discovered 2026-07-10
