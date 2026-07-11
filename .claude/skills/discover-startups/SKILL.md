@@ -27,12 +27,19 @@ finding fresh roles.
 3. **For each candidate company NOT already known** (cap 10 per run): fetch its
    site/careers page with `fetch_content` and extract company intelligence —
    funding stage, company size, industry, remote policy, product-company flag,
-   careers URL. Store only what pages actually state; leave unknown fields unset:
+   careers URL. Store only what pages actually state — OMIT any flag whose value
+   the page doesn't support (an omitted flag stays unset in the DB; that is
+   correct). Every value below is a placeholder, including the product flag —
+   pass `--is-product 1` only if the page shows they build their own product,
+   `--is-product 0` if it's a staffing/consultancy/services firm, and omit the
+   flag entirely when you can't tell:
 
-       python scripts/db.py upsert-company --name "<Name>" --careers-url "<url>" --source discovery --funding-stage "<stage>" --company-size "<size>" --industry "<ind>" --remote-policy "<policy>" --is-product 1
+       python scripts/db.py upsert-company --name "<Name>" --careers-url "<url>" --source discovery --funding-stage "<stage>" --company-size "<size>" --industry "<ind>" --remote-policy "<policy>" --is-product <0 or 1, omit if unstated>
 
 4. **Promote to the daily scan**: for each newly stored company whose careers URL
-   renders postings, append a line to `config/favorites.txt`:
+   renders postings, FIRST check the URL isn't already in the file
+   (`grep -F "<careers_url>" config/favorites.txt` — skip if found, including
+   manually-curated entries), then append a line to `config/favorites.txt`:
 
        <careers_url>  # auto-discovered <today>
 
