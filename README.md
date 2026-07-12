@@ -1,45 +1,183 @@
 # job-hunt-agent
 
-Multi-provider job scanner, application drafter, and pipeline tracker powered by
-Claude Code, TinyFish MCP, SQLite, and Telegram.
+An autonomous job-hunt pipeline that runs on your own Windows laptop: it scans the
+careers pages and job boards **you** choose every morning, scores each new role
+against **your** resume with an explained ✓/✗ breakdown, messages the top matches to
+your phone via Telegram, drafts a tailored resume + cover letter when you reply
+`apply to #N`, and tracks your pipeline through to offer — all powered by
+[Claude Code](https://claude.com/claude-code) skills, [TinyFish](https://tinyfish.ai)
+web fetching, SQLite, and the Telegram Bot API.
 
-## What it does
-- Every day at 9:00 AM IST, `/job-scan` discovers roles from all enabled providers
-  (favorite-company careers pages in `config/favorites.txt`, search queries in
-  `config/searches.txt`, job boards in `config/providers.json`), dedupes by
-  company+title+location+source fingerprint, scores new roles against
-  `config/resume.md` with a ✓/✗ explanation each, stores everything in
-  `state/jobhunt.db`, and Telegrams a digest (scanned totals, new jobs, top matches).
-- On demand, `/draft-application <N|URL>` reuses the cached JD, writes a tailored
-  `resume_<company>.md`, `cover_letter_<company>.md`, and `application_info.txt`
-  into `applications/<company>-<date>/`, and marks the job **Drafted**.
-- `/track` updates application status: Drafted → Applied → Interview → Rejected/Offer → Accepted.
-- Weekly: `/discover-startups` (Mon 9:30) finds new companies and adds them to future
-  scans; `/weekly-report` (Sun 18:00) Telegrams analytics — jobs scanned, applications,
-  interview rate, top requested skills, newly discovered companies.
-- **You review and submit every application manually. Nothing auto-applies.**
+**You review and submit every application manually. Nothing auto-applies — ever.**
 
-## One-time setup
-1. Fill `config/resume.md` with your resume.
-2. Put 15-30 careers-page URLs in `config/favorites.txt` and your search queries
-   in `config/searches.txt`.
-3. Copy `config/telegram.json.example` to `config/telegram.json` and fill in your
-   bot token (from @BotFather) and chat id.
-4. `claude mcp add --transport http tinyfish https://agent.tinyfish.ai/mcp` then
-   complete the browser OAuth once.
-5. `python scripts\db.py init` to create the database.
-6. Run `scripts\register-task.ps1` to schedule the daily scan + weekly jobs.
+## How it works
 
-> **Unattended-run note:** scheduled runs process untrusted web content (careers pages,
-> search results) with a scoped tool allowlist. The allowlist reduces, but does not
-> eliminate, what a malicious page could make the agent execute — `python`/`powershell`
-> grants still allow arbitrary code. Accepted trade-off for hands-off operation; review
-> `logs\` periodically.
+```
+Windows Task Scheduler (daily 9:00, Mon 9:30, Sun 18:00, poller every 5 min)
+        │
+        ▼
+Claude Code (headless `claude -p`, scoped tool allowlist)
+  ├── reads your config:  favorites.txt · searches.txt · providers.json · resume.md
+  ├── fetches the web:    TinyFish MCP (renders JS-heavy careers pages cleanly)
+  ├── remembers:          scripts/db.py → state/jobhunt.db (SQLite, source of truth)
+  │                       dedup fingerprint = sha256(company|title|location|source)
+  └── notifies you:       scripts/send-telegram.ps1 → your Telegram bot
+```
 
-## Manual runs
-- Scan now: `claude -p "/job-scan"` from this directory (or `schtasks /run /tn JobHuntScan`).
-- Draft an application: `claude -p "/draft-application 2"` (role #2 from today's digest).
-- Update status: `claude -p "/track razorpay applied"`.
-- Pipeline view: `python scripts\db.py track --list`
-- Analytics: `python scripts\db.py stats --since 7`
-- Reply from your phone: send the bot "apply to #N" — the JobHuntPoller task (every 5 min, registered by scripts\register-poller.ps1) drafts it automatically.
+| Schedule | Skill | What happens |
+|----------|-------|--------------|
+| Daily 9:00 | `/job-scan` | Scans all enabled providers, dedupes, scores new roles 0-100 against your resume (keyword 30 / experience 20 / projects 15 / seniority 15 / location 10 / company 10), writes `digests/<date>.md`, Telegrams the top 5 with a one-line "why it fits" each |
+| On reply | poller → `/draft-application N` | You reply `apply to #N` on Telegram → tailored `resume_*.md`, `cover_letter_*.md`, `application_info.txt` land in `applications/<company>-<date>/`, job marked **Drafted**. A hard traceability rule forbids the AI from inventing anything not in your real resume |
+| Anytime | `/track` | `claude -p "/track <company> applied"` — moves status through Drafted → Applied → Interview → Rejected/Offer → Accepted |
+| Mon 9:30 | `/discover-startups` | Finds new companies hiring your stack, stores funding/size/industry intel, auto-appends promising careers URLs to your favorites |
+| Sun 18:00 | `/weekly-report` | Analytics: jobs scanned, pipeline counts, interview rate, top in-demand skills vs the gaps in your resume |
+
+## Prerequisites
+
+- Windows 10/11 (uses Task Scheduler + PowerShell 5.1 — both built in)
+- [Claude Code](https://claude.com/claude-code) installed and logged in (`claude` on PATH) — a paid Claude plan; the scan/draft runs consume your plan's usage
+- Python 3.10+ on PATH (`python --version`) — stdlib only, **no pip installs**
+- A free [TinyFish](https://agent.tinyfish.ai) account (web search/fetch for agents — no card)
+- Telegram on your phone
+
+## Setup — every step
+
+### 1. Clone and enter
+
+```powershell
+git clone https://github.com/<you>/job-hunt-agent.git
+cd job-hunt-agent
+```
+
+### 2. Add YOUR data (placeholders → real files)
+
+These three files are gitignored — your personal data never leaves your machine:
+
+```powershell
+copy config\favorites.txt.example config\favorites.txt    # then edit: 15-30 careers URLs you care about
+copy config\searches.txt.example  config\searches.txt     # then edit: queries for your stack/level/location
+notepad config\resume.md                                   # create it: paste your FULL resume as markdown
+```
+
+`config/resume.md` needs your real resume — summary, skills, every job with bullets,
+projects, education. The scanner scores against it and the drafter rewrites it, so
+the better it is, the better everything downstream is. Structure it like:
+
+```markdown
+# Resume — Your Name
+## Summary
+## Skills
+## Experience
+### Company — Title (dates, location, bullet points)
+## Projects
+## Education
+```
+
+### 3. Create your Telegram bot (~3 minutes)
+
+1. In Telegram, message **@BotFather** → send `/newbot` → pick a name and username → copy the **bot token**.
+2. Send your new bot any message (e.g. "hi") so it has something to read.
+3. Open `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` in a browser → find `"chat":{"id": <number>` → that number is your **chat id**.
+4. Wire it up:
+
+```powershell
+copy config\telegram.json.example config\telegram.json
+notepad config\telegram.json      # paste bot_token and chat_id
+```
+
+5. Test it — you should get a message on your phone:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\send-telegram.ps1 -Message "wiring works"
+```
+
+### 4. Connect TinyFish (web fetching)
+
+```powershell
+claude mcp add --transport http --scope user tinyfish https://agent.tinyfish.ai/mcp
+```
+
+Then run `claude` interactively in this folder, type `/mcp`, select `tinyfish`, and
+complete the browser login once (sign up free at agent.tinyfish.ai first). Verify:
+
+```powershell
+claude mcp list      # tinyfish should say Connected
+```
+
+### 5. Initialize the database
+
+```powershell
+python scripts\db.py init
+```
+
+### 6. Schedule everything
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\register-task.ps1     # daily scan + weekly discovery/report
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\register-poller.ps1   # Telegram reply poller, every 5 min
+```
+
+This registers four Task Scheduler entries: `JobHuntScan` (daily 09:00),
+`JobHuntDiscovery` (Mon 09:30), `JobHuntWeekly` (Sun 18:00), `JobHuntPoller`
+(every 5 min). All are configured to run on battery and wake the laptop from sleep.
+
+### 7. First run — don't wait for tomorrow
+
+```powershell
+claude -p "/job-scan"
+```
+
+Takes 10-20 minutes depending on how many sources you listed. Watch your phone.
+
+## Daily use
+
+- **Morning:** digest arrives on Telegram. Read the top 5.
+- **Apply:** reply `apply to #2` to the bot (or run `claude -p "/draft-application 2"`).
+  Within ~10 min you get "Drafted: ..." with a folder containing the tailored resume,
+  cover letter, and the application URL.
+- **Before submitting: READ THE DRAFTS.** The drafter is bound by a traceability rule
+  (nothing not in your real resume), but you are the final quality gate — edit anything
+  that doesn't sound like you, then submit at the URL yourself.
+- **After submitting:** `claude -p "/track <company> applied"` (later: `interview`,
+  `offer`, `rejected`, `accepted`) so Sunday's analytics stay honest.
+- **Pipeline at a glance:** `python scripts\db.py track --list` · `python scripts\db.py stats --since 7`
+
+## Things to know
+
+- **Laptop must be on or asleep** at trigger time — the tasks wake it from sleep, but
+  a powered-off machine can't wake itself. Missed runs don't catch up (just run the
+  scan manually). Claude Code does NOT need to be open; the scheduler launches it.
+- **Usage limits:** runs consume your Claude plan. If a run logs
+  "You've hit your session limit", it resumes working after the reset time.
+- **Logs** live in `logs\` (`scan.log`, `discovery.log`, `weekly.log`,
+  `poller-error.log`, per-draft logs). First place to look if something seems dead.
+- **Security:** scheduled runs process untrusted web content (careers pages, search
+  results) with a scoped tool allowlist (see the `.cmd` wrappers). The allowlist
+  reduces, but does not eliminate, what a malicious page could make the agent
+  execute — the `python`/`powershell` grants still allow arbitrary code. That's an
+  accepted trade-off for hands-off operation on a personal machine; review `logs\`
+  periodically. Your `telegram.json`, `resume.md`, favorites/searches, database,
+  digests, and drafted applications are all gitignored and stay local.
+- **Add/remove job sources** by editing `config/providers.json` (Greenhouse, Lever,
+  Ashby, RemoteOK, YC directory, Wellfound included; add others by appending an
+  entry — no code changes needed) and your `favorites.txt` / `searches.txt`.
+
+## Repo layout
+
+```
+.claude/skills/        the five agent skills (prose instructions Claude executes)
+config/                your inputs (*.example are templates; real files gitignored)
+docs/job-schema.md     the canonical job JSON contract
+scripts/db.py          SQLite storage layer + CLI (jobs, dedup, JD cache, tracker, stats)
+scripts/*.ps1|.cmd     Telegram send/poll, scheduler registration, run wrappers
+scripts/test_*         test suites (python -m unittest / plain PowerShell)
+digests/ reports/      generated human-readable outputs (gitignored)
+applications/          drafted applications (gitignored)
+state/                 SQLite DB + runtime state (gitignored)
+```
+
+## Credits
+
+Workflow inspired by the "Find & Apply to Jobs Using AI Agents" pattern (TinyFish +
+agent + Telegram). Built with Claude Code as the agent runtime instead of a separate
+agent framework.

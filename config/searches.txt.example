@@ -1,0 +1,10 @@
+# Dynamic search queries: one per line. Lines starting with # are ignored.
+#
+# SETUP: copy this file to searches.txt and replace with queries matching YOUR
+# stack, experience level, and location. The daily scan runs each query through
+# TinyFish search; the weekly discovery run also uses them to find new companies.
+#
+# Good pattern: "<role/stack> <experience band> <location>"
+Java Backend Engineer 0-2 years India
+Spring Boot Developer hiring
+Junior Software Engineer remote

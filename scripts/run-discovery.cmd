@@ -1,5 +1,6 @@
 @echo off
-cd /d "E:\claude skills\job-hunt-agent"
+rem %~dp0 = this script's folder; .. = project root. Works from any clone location.
+cd /d "%~dp0.."
 if not exist logs mkdir logs
 echo ===== discovery started %date% %time% ===== >> "logs\discovery.log"
 rem Scoped allowlist (user-approved): reduces what an injected instruction from fetched

@@ -6,3 +6,5 @@ state/
 __pycache__/
 digests/
 reports/
+config/favorites.txt
+config/searches.txt

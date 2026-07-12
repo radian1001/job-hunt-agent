@@ -14,6 +14,15 @@ foreach ($t in $tasks) {
     $create = "schtasks /create /f /tn `"$($t.Name)`" /tr `"\`"$cmd\`"`" $($t.Args)"
     cmd /c $create
     if ($LASTEXITCODE -ne 0) { Write-Error "schtasks /create failed for $($t.Name)"; exit 1 }
-    Write-Output "Registered $($t.Name) ($($t.Args))"
+
+    # Laptop-friendly: run on battery, wake from sleep for the trigger, and kill any
+    # run stuck past 2 hours so a hung instance can't block future ones.
+    $task = Get-ScheduledTask -TaskName $t.Name
+    $task.Settings.DisallowStartIfOnBatteries = $false
+    $task.Settings.StopIfGoingOnBatteries     = $false
+    $task.Settings.WakeToRun                  = $true
+    $task.Settings.ExecutionTimeLimit         = "PT2H"
+    Set-ScheduledTask -InputObject $task | Out-Null
+    Write-Output "Registered $($t.Name) ($($t.Args)) [battery OK, wake OK, 2h limit]"
 }
-Write-Output "Note: tasks fire only if the machine is awake. Missed runs do not catch up."
+Write-Output "Note: a shut-down (powered-off) machine cannot wake itself; sleep is fine. Missed runs do not catch up."

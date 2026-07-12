@@ -1,0 +1,17 @@
+# Favorite companies: one careers-page URL per line. Lines starting with # are ignored;
+# inline ` # comment` after a URL is also ignored.
+#
+# SETUP: copy this file to favorites.txt and replace the examples with 15-30 companies
+# YOU want to work at. Direct Greenhouse/Lever/Ashby board URLs render most reliably:
+#   https://boards.greenhouse.io/<company>
+#   https://jobs.lever.co/<company>
+#   https://jobs.ashbyhq.com/<company>
+# Generic /careers pages also work but some JS-heavy ones fail to render (the scan
+# skips failures and reports them in the digest).
+#
+# How to build your list: check where people 1-2 levels above you work, browse the
+# YC jobs directory, and layoffs.fyi's "still hiring" page. The weekly
+# /discover-startups run will also append companies automatically over time.
+https://job-boards.greenhouse.io/postman
+https://boards.greenhouse.io/stripe
+https://jobs.lever.co/figma
