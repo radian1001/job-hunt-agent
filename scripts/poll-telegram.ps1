@@ -18,7 +18,9 @@ try {
     if (Test-Path $offsetPath) { $offset = [int64](Get-Content $offsetPath -TotalCount 1) }
 
     $uri = "https://api.telegram.org/bot$($config.bot_token)/getUpdates?offset=$offset&timeout=0"
-    $updates = Invoke-RestMethod -Uri $uri
+    # -TimeoutSec is mandatory: PS 5.1's default is infinite, and one hung request
+    # leaves this instance alive forever while Task Scheduler queues every later run.
+    $updates = Invoke-RestMethod -Uri $uri -TimeoutSec 30
 
     foreach ($u in $updates.result) {
         Set-Content -Path $offsetPath -Value ($u.update_id + 1) -Encoding utf8
