@@ -29,9 +29,9 @@ try {
         if ($n) {
             Set-Location $root
             $log = Join-Path $root "logs\draft-$n-$(Get-Date -Format yyyy-MM-dd-HHmm).log"
-            # Scoped allowlist (user-approved, same design as Task 11 wrappers): auto-approves only
-            # the tools /draft-application needs — fetch_content for cache-miss job pages, python for
-            # db.py, powershell for the Telegram notify. Anything outside this list stalls instead of running.
+            # Scoped allowlist (user-approved, same design as the scheduled wrappers): reduces
+            # what an injected instruction from fetched web content can invoke directly.
+            # NOTE: Bash(python/powershell) still permit arbitrary code - accepted residual risk.
             cmd /c "claude -p `"/draft-application $n`" --permission-mode acceptEdits --allowedTools `"mcp__tinyfish__fetch_content`" `"Bash(python:*)`" `"Bash(powershell:*)`" `"Read`" `"Write`" `"Edit`" > `"$log`" 2>&1"
         }
     }

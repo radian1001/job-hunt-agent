@@ -19,6 +19,11 @@ DB_PATH = os.environ.get("JOBHUNT_DB", os.path.join(ROOT, "state", "jobhunt.db")
 
 STATUSES = ("Drafted", "Applied", "Interview", "Rejected", "Offer", "Accepted")
 
+ALLOWED_COMPANY_FIELDS = {
+    "careers_url", "source", "funding_stage", "company_size",
+    "industry", "remote_policy", "is_product_company", "is_favorite",
+}
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS Companies (
   id INTEGER PRIMARY KEY,
@@ -122,6 +127,7 @@ def connect():
 
 def upsert_company(con, name, **fields):
     """Returns (company_id, created). Non-None fields update existing rows."""
+    fields = {k: v for k, v in fields.items() if k in ALLOWED_COMPANY_FIELDS}
     row = con.execute("SELECT id FROM Companies WHERE name = ?", (name,)).fetchone()
     if row:
         sets = {k: v for k, v in fields.items() if v is not None}

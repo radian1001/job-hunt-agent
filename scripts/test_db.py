@@ -75,6 +75,20 @@ class TestStorage(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             db.track(self.con, r["fingerprint"], "Ghosted")
 
+    def test_company_info_unknown_keys_ignored(self):
+        job = sample_job(title="Injection Probe")
+        job["company_info"] = {
+            "industry": "fintech",
+            "weird_field": "boom",
+            "is_favorite = 1, industry": "pwned",
+        }
+        r = db.add_job(self.con, job)  # must not raise
+        row = self.con.execute(
+            "SELECT industry, is_favorite FROM Companies WHERE id = ?",
+            (r["company_id"],)).fetchone()
+        self.assertEqual(row["industry"], "fintech")
+        self.assertEqual(row["is_favorite"], 0)
+
     def test_record_score_and_stats(self):
         r = db.add_job(self.con, sample_job(title="Data Engineer"))
         db.record_score(self.con, r["fingerprint"], {

@@ -30,9 +30,16 @@ Claude Code, TinyFish MCP, SQLite, and Telegram.
 5. `python scripts\db.py init` to create the database.
 6. Run `scripts\register-task.ps1` to schedule the daily scan + weekly jobs.
 
+> **Unattended-run note:** scheduled runs process untrusted web content (careers pages,
+> search results) with a scoped tool allowlist. The allowlist reduces, but does not
+> eliminate, what a malicious page could make the agent execute — `python`/`powershell`
+> grants still allow arbitrary code. Accepted trade-off for hands-off operation; review
+> `logs\` periodically.
+
 ## Manual runs
 - Scan now: `claude -p "/job-scan"` from this directory (or `schtasks /run /tn JobHuntScan`).
 - Draft an application: `claude -p "/draft-application 2"` (role #2 from today's digest).
 - Update status: `claude -p "/track razorpay applied"`.
 - Pipeline view: `python scripts\db.py track --list`
 - Analytics: `python scripts\db.py stats --since 7`
+- Reply from your phone: send the bot "apply to #N" — the JobHuntPoller task (every 5 min, registered by scripts\register-poller.ps1) drafts it automatically.

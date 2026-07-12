@@ -4,3 +4,5 @@ logs/
 applications/
 state/
 __pycache__/
+digests/
+reports/

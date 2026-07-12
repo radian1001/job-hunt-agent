@@ -36,6 +36,10 @@ If one page/query fails, note it and continue — never abort the whole scan for
 bad source. Collect all candidates into one list; remember the total for the digest's
 "scanned" count.
 
+Bound the listing stage too: fetch at most 30 listing pages/queries per run (favorites
+first, then searches). If favorites.txt has grown past that, rotate — skip the sources
+fetched most recently in prior runs so every source is covered across a few days.
+
 ## 3+4. Persist, dedup, and rank — ONE loop, capped at 25 NEW jobs
 Process candidates one at a time. Persistence and ranking happen together so a job is
 only ever recorded as "seen" once it has actually been scored — this guarantees a

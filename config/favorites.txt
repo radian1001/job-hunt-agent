@@ -1,4 +1,5 @@
-# Favorite companies: one careers-page URL per line. Lines starting with # are ignored.
+# Favorite companies: one careers-page URL per line. Lines starting with # are ignored;
+# inline ` # comment` after a URL is also ignored.
 # Tailored for: Java / Spring Boot / AWS backend, 0-2 YOE, India (Hyderabad base).
 # Direct Greenhouse/Lever/Ashby board URLs render most reliably in the scan.
 # (The live scan confirmed Razorpay + Postman both use Greenhouse boards.)
