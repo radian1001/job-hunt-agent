@@ -9,11 +9,14 @@
       "Bash(python scripts/db.py:*)",
       "Bash(python scripts\\db.py:*)",
       "Read(./**)",
+      "Edit(./digests/**)",
+      "Edit(./reports/**)",
+      "Edit(./applications/**)",
+      "Edit(./state/**)",
       "Write(./digests/**)",
       "Write(./reports/**)",
       "Write(./applications/**)",
-      "Write(./state/**)",
-      "Edit(./state/**)"
+      "Write(./state/**)"
     ],
     "deny": []
   }
