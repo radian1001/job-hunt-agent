@@ -12,11 +12,7 @@
       "Edit(./digests/**)",
       "Edit(./reports/**)",
       "Edit(./applications/**)",
-      "Edit(./state/**)",
-      "Write(./digests/**)",
-      "Write(./reports/**)",
-      "Write(./applications/**)",
-      "Write(./state/**)"
+      "Edit(./state/**)"
     ],
     "deny": []
   }
