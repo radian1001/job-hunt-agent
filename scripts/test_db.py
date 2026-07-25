@@ -89,6 +89,29 @@ class TestStorage(unittest.TestCase):
         self.assertEqual(row["industry"], "fintech")
         self.assertEqual(row["is_favorite"], 0)
 
+    def test_keyword_gaps(self):
+        def scored(title, total, missing):
+            r = db.add_job(self.con, sample_job(title=title))
+            db.record_score(self.con, r["fingerprint"], {
+                "total": total, "matched_keywords": ["Java"],
+                "missing_keywords": missing, "recommendation": "x", "explanation": "x"})
+
+        # "kafka" appears in two good jobs with different spellings, and twice
+        # within one job (must still count once for that job).
+        scored("Gap Role A", 80, ["Kafka", "kafka", "Docker"])
+        scored("Gap Role B", 60, ["KAFKA"])
+        scored("Gap Role C", 10, ["Kubernetes"])  # below min_score, ignored
+
+        res = db.keyword_gaps(self.con, min_score=45)
+        self.assertEqual(res["jobs_considered"], 2)
+        gaps = {g["keyword"].lower(): g["missing_in_jobs"] for g in res["gaps"]}
+        self.assertEqual(gaps["kafka"], 2)      # grouped case-insensitively, once per job
+        self.assertEqual(gaps["docker"], 1)
+        self.assertNotIn("kubernetes", gaps)    # low-scoring job excluded
+        top = res["gaps"][0]
+        self.assertEqual(top["keyword"].lower(), "kafka")
+        self.assertIn("Acme Corp", top["wanted_by"])
+
     def test_record_score_and_stats(self):
         r = db.add_job(self.con, sample_job(title="Data Engineer"))
         db.record_score(self.con, r["fingerprint"], {

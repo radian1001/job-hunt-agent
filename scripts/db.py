@@ -231,6 +231,48 @@ def list_jobs(con, limit=200):
     return out
 
 
+def keyword_gaps(con, min_score=45, limit=25):
+    """Which skills keep showing up as MISSING across the roles worth applying to.
+
+    Answers "what should I add to my resume next": counts each keyword once per
+    job, only over jobs scoring at least min_score (ignoring roles that were
+    never a fit anyway), and reports which companies wanted it. Keywords are
+    grouped case-insensitively; the most common spelling is used for display.
+    """
+    rows = con.execute(
+        "SELECT s.missing_keywords, s.total, c.name AS company, j.title"
+        " FROM ResumeScores s"
+        " JOIN (SELECT job_id, MAX(id) AS max_id FROM ResumeScores GROUP BY job_id)"
+        "   latest ON latest.max_id = s.id"
+        " JOIN Jobs j ON j.id = s.job_id"
+        " JOIN Companies c ON c.id = j.company_id"
+        " WHERE s.total >= ?", (min_score,)).fetchall()
+
+    counts, spellings, wanted_by = Counter(), {}, {}
+    for r in rows:
+        seen = set()
+        for raw in json.loads(r["missing_keywords"] or "[]"):
+            kw = (raw or "").strip()
+            if not kw:
+                continue
+            key = kw.lower()
+            if key in seen:  # count a keyword once per job
+                continue
+            seen.add(key)
+            counts[key] += 1
+            spellings.setdefault(key, Counter())[kw] += 1
+            wanted_by.setdefault(key, []).append(r["company"])
+
+    out = []
+    for key, n in counts.most_common(limit):
+        out.append({
+            "keyword": spellings[key].most_common(1)[0][0],
+            "missing_in_jobs": n,
+            "wanted_by": sorted(set(wanted_by[key]))[:6],
+        })
+    return {"jobs_considered": len(rows), "min_score": min_score, "gaps": out}
+
+
 def record_score(con, fingerprint, score):
     job = con.execute("SELECT id FROM Jobs WHERE fingerprint = ?", (fingerprint,)).fetchone()
     if not job:
@@ -353,6 +395,10 @@ def main(argv=None):
     lj = sub.add_parser("list-jobs")
     lj.add_argument("--limit", type=int, default=200)
 
+    kg = sub.add_parser("gaps")
+    kg.add_argument("--min-score", type=int, default=45)
+    kg.add_argument("--limit", type=int, default=25)
+
     rs = sub.add_parser("record-score")
     rs.add_argument("--fingerprint", required=True)
     rs.add_argument("--file", required=True)
@@ -413,6 +459,8 @@ def main(argv=None):
             print(json.dumps(job, indent=2))
         elif args.cmd == "list-jobs":
             print(json.dumps(list_jobs(con, args.limit), indent=2))
+        elif args.cmd == "gaps":
+            print(json.dumps(keyword_gaps(con, args.min_score, args.limit), indent=2))
         elif args.cmd == "record-score":
             with open(args.file, encoding="utf-8") as f:
                 record_score(con, args.fingerprint, json.load(f))

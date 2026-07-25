@@ -16,6 +16,7 @@ import re
 import subprocess
 import sys
 import threading
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -64,6 +65,49 @@ def launch(key, kind, label, argv):
 
     threading.Thread(target=run, daemon=True).start()
     return True
+
+
+MAX_FILE_BYTES = 200_000  # a drafted resume/letter is a few KB; this is a sane ceiling
+
+
+def read_application(fingerprint):
+    """Return the drafted files for a job, read from its recorded folder.
+
+    The folder comes from the database, but it is still resolved and checked to
+    sit inside applications/ before anything is read, so a bad value can never
+    be used to read arbitrary files off the disk.
+    """
+    con = db.connect()
+    try:
+        job = db.get_job(con, fingerprint)
+        row = con.execute(
+            "SELECT a.folder, a.status FROM Applications a JOIN Jobs j ON j.id = a.job_id"
+            " WHERE j.fingerprint = ?", (fingerprint,)).fetchone()
+    finally:
+        con.close()
+    if not job:
+        return {"error": "unknown job"}
+    if not row or not row["folder"]:
+        return {"error": "no draft yet for this job"}
+
+    base = os.path.realpath(project_path("applications"))
+    folder = os.path.realpath(project_path(row["folder"]))
+    if folder != base and not folder.startswith(base + os.sep):
+        return {"error": "draft folder is outside applications/"}
+    if not os.path.isdir(folder):
+        return {"error": f"folder missing on disk: {row['folder']}"}
+
+    files = {}
+    for name in sorted(os.listdir(folder)):
+        path = os.path.join(folder, name)
+        if not os.path.isfile(path) or os.path.getsize(path) > MAX_FILE_BYTES:
+            continue
+        if os.path.splitext(name)[1].lower() not in (".md", ".txt", ".tex"):
+            continue
+        with open(path, encoding="utf-8", errors="replace") as f:
+            files[name] = f.read()
+    return {"folder": row["folder"], "status": row["status"], "company": job["company"],
+            "title": job["title"], "files": files}
 
 
 def claude_argv(prompt, extra_tools=()):
@@ -118,12 +162,22 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 jobs = db.list_jobs(con, 300)
                 stats = db.stats(con, 7)
+                gaps = db.keyword_gaps(con, 45, 15)
             finally:
                 con.close()
             with JOBS_LOCK:
                 running = dict(RUNNING)
-            return self.send_json({"jobs": jobs, "stats": stats, "running": running,
+            return self.send_json({"jobs": jobs, "stats": stats, "gaps": gaps,
+                                   "running": running,
                                    "scan_log": log_tail("scan.log", 25)})
+
+        if self.path.startswith("/api/application"):
+            query = urllib.parse.urlparse(self.path).query
+            fp = urllib.parse.parse_qs(query).get("fingerprint", [""])[0]
+            if not FINGERPRINT_RE.match(fp):
+                return self.send_json({"error": "bad fingerprint"}, 400)
+            return self.send_json(read_application(fp))
+
         self.send_json({"error": "not found"}, 404)
 
     def do_POST(self):
@@ -213,6 +267,27 @@ PAGE = r"""<!doctype html>
   .actions a { color:var(--accent); text-decoration:none; font-size:14px; }
   select { font:inherit; background:var(--panel2); color:var(--text);
     border:1px solid var(--line); border-radius:8px; padding:7px 10px; }
+  .gaps { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:16px; margin-bottom:20px; }
+  .gaps h2 { font-size:14px; margin:0 0 4px; font-weight:600; }
+  .gaps p { margin:0 0 12px; color:var(--muted); font-size:13px; }
+  .gaplist { display:flex; gap:8px; flex-wrap:wrap; }
+  .gap { background:var(--panel2); border:1px solid var(--line); border-radius:8px;
+    padding:7px 11px; font-size:13px; }
+  .gap b { color:var(--warn); }
+  .gap i { color:var(--muted); font-style:normal; font-size:12px; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none;
+    align-items:center; justify-content:center; padding:24px; z-index:20; }
+  .modal.open { display:flex; }
+  .sheet { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    width:100%; max-width:900px; max-height:88vh; display:flex; flex-direction:column; }
+  .sheethead { padding:16px 20px; border-bottom:1px solid var(--line); display:flex;
+    gap:12px; align-items:center; flex-wrap:wrap; }
+  .tabs { display:flex; gap:6px; padding:12px 20px 0; flex-wrap:wrap; }
+  .tabs button.active { border-color:var(--accent); color:var(--accent); }
+  .sheetbody { padding:16px 20px 20px; overflow:auto; }
+  .sheetbody pre { margin:0; white-space:pre-wrap; word-break:break-word;
+    font:13px/1.6 ui-monospace,Consolas,monospace; color:var(--text); }
   .pill { font-size:11px; padding:3px 9px; border-radius:20px; background:var(--panel2);
     color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
   /* Pipeline state reads off the status pill itself rather than a card border. */
@@ -234,6 +309,7 @@ PAGE = r"""<!doctype html>
 <main>
   <div class="stats" id="stats"></div>
   <div class="bar" id="bar"></div>
+  <div class="gaps" id="gaps"></div>
   <div class="filters">
     <input id="q" placeholder="Filter by company, title, location, or skill...">
     <button data-f="all" class="fbtn">All</button>
@@ -243,6 +319,21 @@ PAGE = r"""<!doctype html>
   </div>
   <div id="list"></div>
 </main>
+
+<div class="modal" id="modal">
+  <div class="sheet">
+    <div class="sheethead">
+      <strong id="mTitle"></strong>
+      <span class="pill" id="mFolder"></span>
+      <div class="grow"></div>
+      <button id="mCopy">Copy this file</button>
+      <button id="mClose">Close</button>
+    </div>
+    <div class="tabs" id="mTabs"></div>
+    <div class="sheetbody"><pre id="mBody"></pre></div>
+  </div>
+</div>
+
 <script>
 const STATUSES = ["Drafted","Applied","Interview","Rejected","Offer","Accepted"];
 let DATA = {jobs:[], stats:{}, running:{}}, FILTER = "all";
@@ -291,6 +382,19 @@ function render() {
   document.getElementById('tag').textContent =
     (scan && scan.state === 'running') ? 'scanning' : 'idle';
 
+  const g = DATA.gaps || {gaps:[]};
+  const gapEl = document.getElementById('gaps');
+  if (g.gaps && g.gaps.length) {
+    gapEl.style.display = 'block';
+    gapEl.innerHTML = `<h2>Keywords to add to your resume</h2>
+      <p>Skills the roles you'd actually want keep asking for and your resume doesn't
+      show, across ${esc(g.jobs_considered)} jobs scoring ${esc(g.min_score)}+.
+      Learning or surfacing the top ones lifts every future score.</p>
+      <div class="gaplist">${g.gaps.map(x => `<div class="gap">
+        <b>${esc(x.keyword)}</b> <i>&times;${esc(x.missing_in_jobs)}</i><br>
+        <i>${esc(x.wanted_by.slice(0,3).join(', '))}</i></div>`).join('')}</div>`;
+  } else { gapEl.style.display = 'none'; }
+
   const q = document.getElementById('q').value.toLowerCase();
   let jobs = DATA.jobs.filter(j => {
     if (FILTER === 'strong' && !(j.total >= 70)) return false;
@@ -325,6 +429,7 @@ function render() {
       <div class="actions">
         <button data-draft="${esc(j.fingerprint)}" ${busy ? 'disabled' : ''}>
           ${busy ? 'Drafting...' : (j.status ? 'Re-draft' : 'Draft application')}</button>
+        ${j.folder ? `<button data-view="${esc(j.fingerprint)}">View draft</button>` : ''}
         <select data-status="${esc(j.fingerprint)}">
           <option value="">Set status...</option>
           ${STATUSES.map(s2 => `<option ${j.status === s2 ? 'selected' : ''}
@@ -349,12 +454,54 @@ document.getElementById('q').oninput = render;
 document.querySelectorAll('.fbtn').forEach(b => b.onclick = () => {
   FILTER = b.dataset.f; render();
 });
+// ---- drafted-application viewer ----
+let VIEW = {files:{}, current:null};
+const modal = document.getElementById('modal');
+
+function paintView() {
+  const names = Object.keys(VIEW.files);
+  document.getElementById('mTabs').innerHTML = names.map(n =>
+    `<button data-tab="${esc(n)}" class="${n === VIEW.current ? 'active' : ''}">${esc(n)}</button>`
+  ).join('');
+  document.getElementById('mBody').textContent = VIEW.files[VIEW.current] || '';
+}
+
+async function openView(fp) {
+  const r = await fetch('/api/application?fingerprint=' + encodeURIComponent(fp));
+  const d = await r.json();
+  if (d.error) { alert(d.error); return; }
+  VIEW.files = d.files || {};
+  // Show the cover letter first if present; it's what needs the closest read.
+  const names = Object.keys(VIEW.files);
+  VIEW.current = names.find(n => n.startsWith('cover_letter')) || names[0] || null;
+  document.getElementById('mTitle').textContent = d.company + ' — ' + d.title;
+  document.getElementById('mFolder').textContent = d.folder;
+  paintView();
+  modal.classList.add('open');
+}
+
+document.getElementById('mClose').onclick = () => modal.classList.remove('open');
+modal.onclick = e => { if (e.target === modal) modal.classList.remove('open'); };
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') modal.classList.remove('open');
+});
+document.getElementById('mCopy').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(VIEW.files[VIEW.current] || '');
+    document.getElementById('mCopy').textContent = 'Copied';
+    setTimeout(() => document.getElementById('mCopy').textContent = 'Copy this file', 1500);
+  } catch (err) { alert('Copy failed: ' + err); }
+};
+
 document.addEventListener('click', async e => {
-  const fp = e.target.dataset && e.target.dataset.draft;
-  if (!fp) return;
-  await fetch('/api/draft', {method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({fingerprint: fp})});
-  load();
+  const ds = e.target.dataset || {};
+  if (ds.tab) { VIEW.current = ds.tab; paintView(); return; }
+  if (ds.view) { openView(ds.view); return; }
+  if (ds.draft) {
+    await fetch('/api/draft', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({fingerprint: ds.draft})});
+    load();
+  }
 });
 document.addEventListener('change', async e => {
   const fp = e.target.dataset && e.target.dataset.status;

@@ -62,6 +62,27 @@
   .pill.st-Interview { color:var(--accent); box-shadow:inset 0 0 0 1px rgba(79,140,255,.4); }
   .pill.st-Rejected { color:var(--muted); }
   .empty { color:var(--muted); text-align:center; padding:40px; }
+  .gaps { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:16px; margin-bottom:20px; }
+  .gaps h2 { font-size:14px; margin:0 0 4px; font-weight:600; }
+  .gaps p { margin:0 0 12px; color:var(--muted); font-size:13px; }
+  .gaplist { display:flex; gap:8px; flex-wrap:wrap; }
+  .gap { background:var(--panel2); border:1px solid var(--line); border-radius:8px;
+    padding:7px 11px; font-size:13px; }
+  .gap b { color:var(--warn); }
+  .gap i { color:var(--muted); font-style:normal; font-size:12px; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none;
+    align-items:center; justify-content:center; padding:24px; z-index:20; }
+  .modal.open { display:flex; }
+  .sheet { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    width:100%; max-width:900px; max-height:88vh; display:flex; flex-direction:column; }
+  .sheethead { padding:16px 20px; border-bottom:1px solid var(--line); display:flex;
+    gap:12px; align-items:center; flex-wrap:wrap; }
+  .tabs { display:flex; gap:6px; padding:12px 20px 0; flex-wrap:wrap; }
+  .tabs button.active { border-color:var(--accent); color:var(--accent); }
+  .sheetbody { padding:16px 20px 20px; overflow:auto; }
+  .sheetbody pre { margin:0; white-space:pre-wrap; word-break:break-word;
+    font:13px/1.6 ui-monospace,Consolas,monospace; color:var(--text); }
   footer { border-top:1px solid var(--line); padding:24px; color:var(--muted);
     font-size:13px; text-align:center; }
   footer a { color:var(--accent); }
@@ -87,6 +108,7 @@
 <main>
   <div class="stats" id="stats"></div>
   <div class="bar" id="bar"></div>
+  <div class="gaps" id="gaps"></div>
   <div class="filters">
     <input id="q" placeholder="Filter by company, title, location, or skill...">
     <button data-f="all" class="fbtn">All</button>
@@ -103,6 +125,20 @@
   It never submits an application for you.<br>
   <a href="https://github.com/radian1001/job-hunt-agent">Read the setup guide on GitHub</a>
 </footer>
+
+<div class="modal" id="modal">
+  <div class="sheet">
+    <div class="sheethead">
+      <strong id="mTitle"></strong>
+      <span class="pill" id="mFolder"></span>
+      <div class="grow"></div>
+      <button id="mCopy">Copy this file</button>
+      <button id="mClose">Close</button>
+    </div>
+    <div class="tabs" id="mTabs"></div>
+    <div class="sheetbody"><pre id="mBody"></pre></div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -149,7 +185,88 @@ const DATA = { jobs: [
     matched_keywords:["Java"],
     missing_keywords:["8+ years experience","Kubernetes","Team leadership"] }
 ], stats: { new_jobs:6, applications:{Drafted:1,Applied:1,Interview:1,Rejected:0,Offer:0,Accepted:0},
-  interview_rate:0.33, new_companies:["Kestrel Labs","Quillfeather Analytics"] } };
+  interview_rate:0.33, new_companies:["Kestrel Labs","Quillfeather Analytics"] },
+gaps: { jobs_considered:5, min_score:45, gaps:[
+  {keyword:"Kafka", missing_in_jobs:4, wanted_by:["Northwind Payments","Halcyon Systems"]},
+  {keyword:"Kubernetes", missing_in_jobs:3, wanted_by:["Halcyon Systems","Kestrel Labs"]},
+  {keyword:"Docker", missing_in_jobs:3, wanted_by:["Tanager Health"]},
+  {keyword:"Redis", missing_in_jobs:2, wanted_by:["Tanager Health"]},
+  {keyword:"Go", missing_in_jobs:2, wanted_by:["Kestrel Labs"]},
+  {keyword:"dbt", missing_in_jobs:1, wanted_by:["Quillfeather Analytics"]}
+]}};
+
+// Sample drafted files, shown by the "View draft" button.
+const SAMPLE_DRAFT = {
+  "cover_letter_kestrel-labs.md":
+`# Cover Letter
+
+Dear Hiring Team,
+
+I'm applying for the Backend Engineer, Platform role. Your posting calls for
+someone who has built event-driven services on AWS and owned their deployment
+path, which is the shape of my day-to-day work: I build Java services on Lambda
+and Step Functions and ship them through a Terraform-provisioned CI/CD pipeline.
+
+Most relevant to your requirements: I develop serverless Java services backed by
+PostgreSQL using Spring JDBC, secure their REST APIs, and provision the
+infrastructure with Terraform. Your platform team's goal of giving product teams
+safe defaults is the kind of work I want to move into next.
+
+I'm upfront that my Go exposure is limited; my depth is in Java and Spring.
+
+I'd welcome a conversation about the role.
+
+Sincerely,
+[Your name]`,
+  "resume_kestrel-labs.md":
+`# Resume — [Your name]
+
+## Summary
+Backend engineer, ~1.5 years, focused on Java, Spring Boot, and event-driven
+serverless AWS architectures.
+
+## Skills
+- Languages: Java, Python, SQL, JavaScript
+- Frameworks: Spring Boot, Spring MVC, Spring JDBC, Hibernate
+- Cloud: AWS (Lambda, Step Functions, EventBridge, S3), Terraform, CI/CD
+
+## Experience
+### Current employer - Backend Developer
+- Built serverless Java services on AWS Lambda backed by PostgreSQL via Spring JDBC.
+- Modernized legacy systems into an event-driven architecture on Lambda,
+  Step Functions and EventBridge.
+- Automated CI/CD and provisioned infrastructure with Terraform.
+
+(Bullets are reordered per role so the JD's priorities read first. Every line
+must trace back to the real resume - the drafter is forbidden from inventing.)`,
+  "resume_kestrel-labs.tex":
+String.raw`% ATS-parsable LaTeX, generated from config/resume-template.tex
+\documentclass[a4paper,11pt]{article}
+% ... preamble kept byte-identical (tuned for ATS parsers) ...
+\begin{document}
+\section{Experiences}
+\resumeSubheading{Current employer}{India}
+{\underline{Backend Developer}}{Nov 2024 - Present}
+\resumeItemListStart
+\resumeItem{}{Built serverless \textbf{Java} services on \textbf{AWS Lambda}
+  backed by \textbf{PostgreSQL} via \textbf{Spring JDBC}.}
+\resumeItem{}{Provisioned infrastructure with \textbf{Terraform} and automated
+  \textbf{CI/CD}.}
+\resumeItemListEnd
+\end{document}
+
+% Bold is applied only to technologies the JD asks for AND the resume already
+% contains. Compile with pdflatex to get the submission PDF.`,
+  "application_info.txt":
+`Role: Backend Engineer, Platform
+Company: Kestrel Labs
+Location: Remote (India)
+Apply at: https://example.com/careers/backend-platform
+Contact named in posting: (none found)
+Drafted: 2026-07-21
+
+SUBMIT MANUALLY - this agent never submits applications.`
+};
 
 const STATUSES = ["Drafted","Applied","Interview","Rejected","Offer","Accepted"];
 let FILTER = "all";
@@ -174,6 +291,15 @@ function render() {
     ['Interview rate', Math.round(s.interview_rate*100)+'%'],
     ['New companies', s.new_companies.length],
   ].map(([k,v]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join('');
+
+  const g = DATA.gaps;
+  document.getElementById('gaps').innerHTML = `<h2>Keywords to add to your resume</h2>
+    <p>Skills the roles you'd actually want keep asking for and your resume doesn't
+    show, across ${g.jobs_considered} jobs scoring ${g.min_score}+.
+    Learning or surfacing the top ones lifts every future score.</p>
+    <div class="gaplist">${g.gaps.map(x => `<div class="gap">
+      <b>${esc(x.keyword)}</b> <i>&times;${x.missing_in_jobs}</i><br>
+      <i>${esc(x.wanted_by.slice(0,3).join(', '))}</i></div>`).join('')}</div>`;
 
   const q = document.getElementById('q').value.toLowerCase();
   const jobs = DATA.jobs.filter(j => {
@@ -201,6 +327,7 @@ function render() {
       <div class="kw">${yes}${no}</div>
       <div class="actions">
         <button data-demo="draft">${j.status ? 'Re-draft' : 'Draft application'}</button>
+        ${j.folder ? `<button data-view="1">View draft</button>` : ''}
         <select data-demo="status">
           <option value="">Set status...</option>
           ${STATUSES.map(s2=>`<option ${j.status===s2?'selected':''}>${s2}</option>`).join('')}
@@ -224,10 +351,44 @@ document.getElementById('scanBtn').onclick = () => {
 document.getElementById('refreshBtn').onclick = () => { render(); toast('Sample data reloaded'); };
 document.getElementById('q').oninput = render;
 document.querySelectorAll('.fbtn').forEach(b => b.onclick = () => { FILTER = b.dataset.f; render(); });
+// ---- drafted-application viewer ----
+let VIEW = {current:null};
+const modal = document.getElementById('modal');
+const names = () => Object.keys(SAMPLE_DRAFT);
+
+function paintView() {
+  document.getElementById('mTabs').innerHTML = names().map(n =>
+    `<button data-tab="${esc(n)}" class="${n === VIEW.current ? 'active' : ''}">${esc(n)}</button>`
+  ).join('');
+  document.getElementById('mBody').textContent = SAMPLE_DRAFT[VIEW.current] || '';
+}
+function openView() {
+  VIEW.current = names().find(n => n.startsWith('cover_letter')) || names()[0];
+  document.getElementById('mTitle').textContent = 'Kestrel Labs — Backend Engineer, Platform';
+  document.getElementById('mFolder').textContent = 'applications/kestrel-labs-2026-07-21';
+  paintView();
+  modal.classList.add('open');
+}
+document.getElementById('mClose').onclick = () => modal.classList.remove('open');
+modal.onclick = e => { if (e.target === modal) modal.classList.remove('open'); };
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') modal.classList.remove('open');
+});
+document.getElementById('mCopy').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(SAMPLE_DRAFT[VIEW.current] || '');
+    const b = document.getElementById('mCopy');
+    b.textContent = 'Copied';
+    setTimeout(() => b.textContent = 'Copy this file', 1500);
+  } catch (err) { toast('Copy blocked by the browser'); }
+};
+
 document.addEventListener('click', e => {
-  const d = e.target.dataset && e.target.dataset.demo;
-  if (d === 'draft') toast('Locally this writes a tailored resume + cover letter for this role');
-  if (d === 'link') { e.preventDefault(); toast('Sample posting — links to the repo in this demo'); }
+  const ds = e.target.dataset || {};
+  if (ds.tab) { VIEW.current = ds.tab; paintView(); return; }
+  if (ds.view) { openView(); return; }
+  if (ds.demo === 'draft') toast('Locally this writes a tailored resume + cover letter for this role');
+  if (ds.demo === 'link') { e.preventDefault(); toast('Sample posting — links to the repo in this demo'); }
 });
 document.addEventListener('change', e => {
   if (e.target.dataset && e.target.dataset.demo === 'status')
