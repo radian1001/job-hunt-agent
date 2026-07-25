@@ -148,7 +148,7 @@ Job portals want PDFs, so the drafter's `.tex` resume and markdown cover letter 
 compiled locally:
 
 ```powershell
-python scriptsuild-pdf.py applications\<company>-<date>
+python scripts\build-pdf.py applications\<company>-<date>
 ```
 
 That produces `resume_<company>.pdf` and `cover_letter_<company>.pdf` in the same
