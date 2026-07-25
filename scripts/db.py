@@ -189,6 +189,48 @@ def get_jd(con, fingerprint):
     return row["jd_markdown"] if row else None
 
 
+def get_job(con, fingerprint):
+    """Full job row + company name, as a dict. None if the fingerprint is unknown."""
+    row = con.execute(
+        "SELECT j.fingerprint, j.title, j.location, j.remote_policy, j.url, j.source,"
+        " j.stack, j.yoe_min, j.yoe_max, j.seniority, j.first_seen, j.last_seen,"
+        " (j.jd_markdown IS NOT NULL) AS has_jd, c.name AS company, c.slug AS company_slug,"
+        " c.industry, c.funding_stage, c.company_size"
+        " FROM Jobs j JOIN Companies c ON c.id = j.company_id"
+        " WHERE j.fingerprint = ?", (fingerprint,)).fetchone()
+    if not row:
+        return None
+    job = dict(row)
+    job["stack"] = json.loads(job["stack"] or "[]")
+    return job
+
+
+def list_jobs(con, limit=200):
+    """Jobs joined with their latest score and application status, best score first.
+    Powers the dashboard's job list."""
+    rows = con.execute(
+        "SELECT j.fingerprint, c.name AS company, j.title, j.location, j.remote_policy,"
+        " j.url, j.source, j.stack, j.seniority, j.first_seen,"
+        " (j.jd_markdown IS NOT NULL) AS has_jd,"
+        " s.total, s.recommendation, s.matched_keywords, s.missing_keywords,"
+        " a.status, a.folder, a.updated_at AS status_updated_at"
+        " FROM Jobs j"
+        " JOIN Companies c ON c.id = j.company_id"
+        " LEFT JOIN Applications a ON a.job_id = j.id"
+        " LEFT JOIN (SELECT job_id, MAX(id) AS max_id FROM ResumeScores GROUP BY job_id)"
+        "   latest ON latest.job_id = j.id"
+        " LEFT JOIN ResumeScores s ON s.id = latest.max_id"
+        " ORDER BY COALESCE(s.total, -1) DESC, j.first_seen DESC LIMIT ?",
+        (limit,)).fetchall()
+    out = []
+    for r in rows:
+        d = dict(r)
+        for key in ("stack", "matched_keywords", "missing_keywords"):
+            d[key] = json.loads(d[key] or "[]")
+        out.append(d)
+    return out
+
+
 def record_score(con, fingerprint, score):
     job = con.execute("SELECT id FROM Jobs WHERE fingerprint = ?", (fingerprint,)).fetchone()
     if not job:
@@ -305,6 +347,12 @@ def main(argv=None):
     gj = sub.add_parser("get-jd")
     gj.add_argument("--fingerprint", required=True)
 
+    gjob = sub.add_parser("get-job")
+    gjob.add_argument("--fingerprint", required=True)
+
+    lj = sub.add_parser("list-jobs")
+    lj.add_argument("--limit", type=int, default=200)
+
     rs = sub.add_parser("record-score")
     rs.add_argument("--fingerprint", required=True)
     rs.add_argument("--file", required=True)
@@ -358,6 +406,13 @@ def main(argv=None):
             if jd is None:
                 sys.exit(3)
             print(jd)
+        elif args.cmd == "get-job":
+            job = get_job(con, args.fingerprint)
+            if job is None:
+                sys.exit(3)
+            print(json.dumps(job, indent=2))
+        elif args.cmd == "list-jobs":
+            print(json.dumps(list_jobs(con, args.limit), indent=2))
         elif args.cmd == "record-score":
             with open(args.file, encoding="utf-8") as f:
                 record_score(con, args.fingerprint, json.load(f))

@@ -11,6 +11,10 @@ direct job-posting URL.
 ## Steps
 
 1. **Resolve the role.**
+   - If given a 16-character hex fingerprint (this is what the dashboard's Draft
+     button sends): `python scripts/db.py get-job --fingerprint <fp>` prints the job
+     JSON (company, title, location, url, stack, seniority). Exit code 3 means the
+     fingerprint is unknown: say so and stop. Skip straight to Step 2.
    - If given a number N: read the newest file in `digests/` (sort by filename, they
      are YYYY-MM-DD.md), find the `## #N — <Company> — <Role>` section, take its
      `Fingerprint:` and `URL:` lines.
@@ -59,6 +63,19 @@ direct job-posting URL.
    - Put the most JD-relevant bullets first within each job.
    - Self-check before saving: read your draft against `config/resume.md` line by line;
      every noun and claim must be findable in the source. Remove any that isn't.
+
+4b. **Also write `resume_<company-slug>.tex`** — the LaTeX version, which is what the
+   user actually submits. Start from `config/resume-template.tex` and keep its preamble
+   and macros BYTE-IDENTICAL (the spacing and `\pdfgentounicode=1` are tuned for ATS
+   parsers). Change only the content:
+   - Reorder bullets so the JD-relevant ones come first, and `\textbf{}` the JD's key
+     technologies **only where they already appear** in the user's real experience.
+     Bolding a skill the user hasn't used is the same violation as inventing a bullet.
+   - Keep it to one page. If content overflows, drop the least JD-relevant project or
+     bullet rather than shrinking the margins.
+   - Leave the header's PORTFOLIO_URL / LINKEDIN_URL / GITHUB_URL placeholders as-is
+     unless `config/resume.md` states the real URLs.
+   - The same traceability HARD RULE applies to this file.
 
 5. **Write `cover_letter_<company-slug>.md`**, one page:
    - Opening: the specific reason THIS role fits (name something concrete from the JD

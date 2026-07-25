@@ -1,0 +1,185 @@
+% ATS-parsable single-page resume template (job-hunt-agent).
+% The /draft-application skill fills this in per role. Rules:
+%   - Keep this preamble byte-identical; it is tuned for ATS parsing (\pdfgentounicode=1).
+%   - Only reorder/reword CONTENT. Every claim must trace to config/resume.md.
+%   - Bold with \textbf{} the JD's key technologies where they already appear in
+%     the user's real experience. Never bold something they haven't done.
+\documentclass[a4paper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\input{glyphtounicode}
+\hypersetup{
+    colorlinks=true,
+    urlcolor=blue
+    }
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\setlength{\footskip}{4.08003pt}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjust margins
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+
+\pdfgentounicode=1
+
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-7pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-6pt}]
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[2]{
+  \item\small{
+    {#1}{#2 \vspace{0.8 pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{1.18pt}\item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \small#3 & \small #4 \\
+    \end{tabular*}\vspace{-5 pt}
+}
+
+\newcommand{\resumeSubItem}[2]{\resumeItem{#1}{#2}\vspace{-3.5pt}}
+
+\renewcommand{\labelitemii}{$\circ$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=*, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-6.5 pt}}
+
+%-------------------------------------------
+%%%%%%  CV STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+% ----------HEADING-----------------
+\begin{tabular*}{\textwidth}{l@{\extracolsep{\fill}}r}
+	\textbf{{\Huge Abhyudaya Baghel}} & Mobile : +91-8269220718\\
+        \href{PORTFOLIO_URL}{\underline{Portfolio}}
+        \hspace{0.5 mm}
+	\href{LINKEDIN_URL}{\underline{LinkedIn}}
+	\hspace{0.5 mm}
+	\href{GITHUB_URL}{\underline{GitHub}}
+	\hspace{0.5 mm}  \hspace{0.5 mm}  & Email : \href{mailto:baghelabhyudaya@gmail.com}{baghelabhyudaya@gmail.com} \\
+\end{tabular*}
+
+%-----------EDUCATION-----------------
+\section{Education}
+\resumeSubHeadingListStart
+\resumeSubheading
+{Kalinga Institute of Industrial Technology (KIIT University)}{Odisha, India}
+{B.Tech. Computer Science and Engineering \hspace{4.5 mm} GPA: 8.54/10 }{Aug 2020 - May 2024}
+\resumeSubheading
+{Shakuntala Vidyalaya}{Chhattisgarh, India}
+{12th \textbf{CBSE} \hspace{4.5 mm} Percentage: 93.8\%}{Jun 2019 - Mar 2020}
+\resumeSubHeadingListEnd
+
+%-----------PROGRAMMING SKILLS-----------------
+\section{Programming Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \item{
+     \textbf{Languages}{:  Java, Python, SQL, JavaScript, C/C++} \\
+     \textbf{Frameworks}{:  Spring Boot, Spring MVC, Spring JDBC, Spring ORM, Spring Microservices, Hibernate, Tailwind CSS} \\
+     \textbf{Cloud \& Infrastructure}{:  AWS (Lambda, Step Functions, EventBridge, S3, CloudWatch), Terraform, Spinnaker, Liquibase, PostgreSQL, MySQL} \\
+     \textbf{Developer Tools}{:  Git, GitHub, Jira, IntelliJ IDEA, Eclipse, VS Code}
+    }
+ \end{itemize}
+
+%-----------EXPERIENCE-----------------
+\section{Experiences}
+\resumeSubHeadingListStart
+
+\resumeSubheading
+{Deloitte}{Hyderabad, India}
+{\underline{AWS Java Developer}}{Nov 2024 - Present}
+\resumeItemListStart
+\resumeItem{}
+{Developed and deployed serverless \textbf{Java}-based \textbf{AWS Lambda} functions integrated with \textbf{PostgreSQL (RDS)} using \textbf{Spring JDBC}, securing \textbf{REST APIs} with ADFS authentication.}
+\resumeItem{}
+{Modernized legacy systems into an event-driven AWS cloud architecture using \textbf{Lambda, Step Functions, EventBridge and S3}, improving scalability and automation efficiency.}
+\resumeItem{}
+{Implemented \textbf{CI/CD} automation with Jules and Spinnaker, provisioned infrastructure using \textbf{Terraform}, and maintained database versioning via Liquibase.}
+\resumeItemListEnd
+
+\resumeSubheading
+{HighRadius}{Bhubaneswar, India}
+{\underline{Java Developer Intern}}{Jul 2023 - Oct 2023}
+\resumeItemListStart
+\resumeItem{}
+{Enhanced client data aggregation workflows by debugging and optimizing \textbf{Java-Spring-SQL} applications, achieving a \textbf{30\% increase in efficiency}.}
+\resumeItem{}
+{Analyzed and optimized legacy systems, resulting in a \textbf{25\% improvement} in performance and responsiveness.}
+\resumeItemListEnd
+
+\resumeSubheading
+{Elite Techno Group}{Remote, India}
+{\underline{Python Developer Intern (ML \& AI)}}{Aug 2021 - Sep 2021}
+\resumeItemListStart
+\resumeItem{}
+{Built a dynamic inventory management system using \textbf{Python} and JSON, improving record management by \textbf{40\%}.}
+\resumeItem{}
+{Performed data analysis and visualization on Olympic datasets, identifying performance trends and improving analytical decision accuracy by \textbf{50\%}.}
+\resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeSubItem{\textbf{Calorie Calculator API}: }{RESTful API delivering real-time nutritional data, built with \textbf{Django}, documented and hosted via GitHub}
+\resumeItemListStart
+\resumeItem{}
+{Designed \textbf{REST endpoints} for food-item nutrition lookup, streamlining calorie tracking for web-based fitness applications.}
+\resumeItemListEnd
+
+\resumeSubItem{\textbf{Web3 Blockchain Crowdfunding Platform}: }{Decentralized crowdfunding application using \textbf{Ethereum, Solidity and Web3.js}}
+\resumeItemListStart
+\resumeItem{}
+{Enabled creation of and contribution to smart-contract-based campaigns, improving transaction traceability and transparency.}
+\resumeItemListEnd
+
+\resumeSubItem{\textbf{Job Hunt Agent}: }{Autonomous job-search pipeline using \textbf{Python, SQLite, Telegram Bot API} and an LLM agent runtime}
+\resumeItemListStart
+\resumeItem{}
+{Built a scheduled multi-provider scanner that dedupes postings by content fingerprint, scores them against a resume, and delivers ranked digests; open-sourced on GitHub.}
+\resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------ACHIEVEMENTS-----------------
+\section{Achievements}
+ \begin{itemize}[leftmargin=0.15in, label={$\bullet$}]
+    \item{\small Solved \textbf{150+} algorithmic problems on LeetCode, demonstrating strong data structures and problem-solving proficiency.}
+    \item{\small Ranked \textbf{213th} (top 250) among 10,000+ candidates in the Newton School Coding Competition.}
+ \end{itemize}
+
+\end{document}

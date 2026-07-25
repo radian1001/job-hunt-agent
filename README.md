@@ -181,3 +181,17 @@ state/                 SQLite DB + runtime state (gitignored)
 Workflow inspired by the "Find & Apply to Jobs Using AI Agents" pattern (TinyFish +
 agent + Telegram). Built with Claude Code as the agent runtime instead of a separate
 agent framework.
+
+## Dashboard (recommended if your machine isn't always on)
+
+Double-click `dashboard.cmd` (or run `python scripts\dashboard.py`) and open
+http://127.0.0.1:8765. It shows every scored job with its match breakdown, and gives
+you a "Scan for jobs now" button, a Draft button per job, and a status dropdown per
+job, so you never need the terminal or Telegram to drive the pipeline. Reads the same
+SQLite database and runs the same skills as the scheduled jobs.
+
+Bound to 127.0.0.1 only: it exposes your job data and can launch local processes, so
+it must never be put on a public interface.
+
+Scheduled tasks are also set to "run as soon as possible after a missed start", so a
+scan skipped because the laptop was off fires shortly after you next boot.
