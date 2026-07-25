@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job Hunt Dashboard — live demo</title>
+<meta name="description" content="Static demo of the job-hunt-agent dashboard: an autonomous job scanner that scores postings against your resume, drafts tailored applications, and tracks your pipeline.">
+<style>
+  :root {
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+    --text:#e6e8ec; --muted:#9aa2b1; --accent:#4f8cff; --good:#3fb950;
+    --warn:#d29922; --bad:#f85149;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif; }
+  .demobar { background:#1d2433; border-bottom:1px solid var(--accent);
+    padding:10px 24px; font-size:13px; color:#bcd0f7; text-align:center; }
+  .demobar a { color:#fff; }
+  header { padding:20px 24px; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  h1 { font-size:19px; margin:0; font-weight:600; }
+  .grow { flex:1; }
+  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid var(--line);
+    background:var(--panel2); color:var(--text); padding:8px 14px; }
+  button:hover { border-color:var(--accent); }
+  #scanBtn { background:var(--accent); border-color:var(--accent); color:#fff;
+    font-weight:600; padding:10px 20px; }
+  main { padding:24px; max-width:1100px; margin:0 auto; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:12px; margin-bottom:20px; }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px; }
+  .stat b { display:block; font-size:24px; font-weight:600; }
+  .stat span { color:var(--muted); font-size:12px; text-transform:uppercase;
+    letter-spacing:.5px; }
+  .bar { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:12px 16px; margin-bottom:18px; color:var(--muted); font-size:13px;
+    white-space:pre-wrap; font-family:ui-monospace,Consolas,monospace; display:none; }
+  .filters { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .filters input { flex:1; min-width:200px; background:var(--panel); color:var(--text);
+    border:1px solid var(--line); border-radius:8px; padding:9px 12px; font:inherit; }
+  .job { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:16px; margin-bottom:12px; }
+  .jobhead { display:flex; gap:14px; align-items:flex-start; }
+  .score { font-size:22px; font-weight:700; min-width:52px; text-align:center; }
+  .s-hi { color:var(--good); } .s-mid { color:var(--warn); } .s-lo { color:var(--muted); }
+  .title { font-weight:600; }
+  .meta { color:var(--muted); font-size:13px; margin-top:2px; }
+  .kw { margin-top:10px; font-size:13px; display:flex; gap:6px; flex-wrap:wrap; }
+  .kw span { padding:2px 8px; border-radius:20px; background:var(--panel2); }
+  .kw .yes { color:var(--good); } .kw .no { color:var(--muted); }
+  .actions { display:flex; gap:8px; margin-top:12px; align-items:center; flex-wrap:wrap; }
+  .actions a { color:var(--accent); text-decoration:none; font-size:14px; }
+  select { font:inherit; background:var(--panel2); color:var(--text);
+    border:1px solid var(--line); border-radius:8px; padding:7px 10px; }
+  .pill { font-size:11px; padding:3px 9px; border-radius:20px; background:var(--panel2);
+    color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+  /* Pipeline state reads off the status pill itself rather than a card border. */
+  .pill.st-Drafted  { color:var(--warn); box-shadow:inset 0 0 0 1px rgba(210,153,34,.35); }
+  .pill.st-Applied,
+  .pill.st-Offer,
+  .pill.st-Accepted { color:var(--good); box-shadow:inset 0 0 0 1px rgba(63,185,80,.35); }
+  .pill.st-Interview { color:var(--accent); box-shadow:inset 0 0 0 1px rgba(79,140,255,.4); }
+  .pill.st-Rejected { color:var(--muted); }
+  .empty { color:var(--muted); text-align:center; padding:40px; }
+  footer { border-top:1px solid var(--line); padding:24px; color:var(--muted);
+    font-size:13px; text-align:center; }
+  footer a { color:var(--accent); }
+  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--panel2); border:1px solid var(--accent); color:var(--text);
+    padding:12px 20px; border-radius:10px; font-size:14px; display:none; z-index:9; }
+</style></head><body>
+
+<div class="demobar">
+  Static demo with <strong>sample data</strong> — the real dashboard runs locally on your
+  own machine and drives live scans. Source:
+  <a href="https://github.com/radian1001/job-hunt-agent">github.com/radian1001/job-hunt-agent</a>
+</div>
+
+<header>
+  <h1>Job Hunt Dashboard</h1>
+  <span id="tag" class="pill">idle</span>
+  <div class="grow"></div>
+  <button id="scanBtn">Scan for jobs now</button>
+  <button id="refreshBtn">Refresh</button>
+</header>
+
+<main>
+  <div class="stats" id="stats"></div>
+  <div class="bar" id="bar"></div>
+  <div class="filters">
+    <input id="q" placeholder="Filter by company, title, location, or skill...">
+    <button data-f="all" class="fbtn">All</button>
+    <button data-f="strong" class="fbtn">Score 70+</button>
+    <button data-f="new" class="fbtn">Not yet drafted</button>
+    <button data-f="pipeline" class="fbtn">In pipeline</button>
+  </div>
+  <div id="list"></div>
+</main>
+
+<footer>
+  Scans the careers pages you choose, scores each posting against your resume with an
+  explained breakdown, drafts tailored applications on request, and tracks your pipeline.
+  It never submits an application for you.<br>
+  <a href="https://github.com/radian1001/job-hunt-agent">Read the setup guide on GitHub</a>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Sample data. Companies and postings below are invented for this demo.
+const DATA = { jobs: [
+  { fingerprint:"a1", company:"Northwind Payments", title:"SDE 1 - Backend (Java)",
+    location:"Bengaluru, India", source:"greenhouse", has_jd:1, total:86,
+    recommendation:"Strong Match", status:null, folder:null,
+    stack:["Java","Spring Boot","PostgreSQL","AWS","Kafka"],
+    matched_keywords:["Java","Spring Boot","REST APIs","PostgreSQL","AWS"],
+    missing_keywords:["Kafka","Kubernetes"] },
+  { fingerprint:"a2", company:"Kestrel Labs", title:"Backend Engineer, Platform",
+    location:"Remote (India)", source:"lever", has_jd:1, total:81,
+    recommendation:"Strong Match", status:"Drafted",
+    folder:"applications/kestrel-labs-2026-07-21",
+    stack:["Java","Spring Boot","Microservices","Terraform"],
+    matched_keywords:["Java","Spring Boot","Microservices","Terraform","CI/CD"],
+    missing_keywords:["Go"] },
+  { fingerprint:"a3", company:"Tanager Health", title:"SDE 1 (Backend Developer)",
+    location:"Pune, India", source:"careers_page", has_jd:1, total:74,
+    recommendation:"Strong Match", status:"Applied",
+    folder:"applications/tanager-health-2026-07-19",
+    stack:["Java","Spring MVC","MySQL","Docker"],
+    matched_keywords:["Java","Spring MVC","MySQL","SQL"],
+    missing_keywords:["Docker","Redis"] },
+  { fingerprint:"a4", company:"Bramble Logistics", title:"Java AWS Developer",
+    location:"Hyderabad, India", source:"ashby", has_jd:1, total:68,
+    recommendation:"Good Match", status:"Interview",
+    folder:"applications/bramble-logistics-2026-07-14",
+    stack:["Java","AWS Lambda","Step Functions","DynamoDB"],
+    matched_keywords:["Java","AWS Lambda","Step Functions","EventBridge"],
+    missing_keywords:["DynamoDB","3+ years experience"] },
+  { fingerprint:"a5", company:"Quillfeather Analytics", title:"Data Engineer I",
+    location:"Bengaluru, India", source:"tinyfish_search", has_jd:1, total:52,
+    recommendation:"Possible Match", status:null, folder:null,
+    stack:["Python","SQL","Airflow","dbt","Snowflake"],
+    matched_keywords:["Python","SQL","AWS"],
+    missing_keywords:["Airflow","dbt","Snowflake","Spark"] },
+  { fingerprint:"a6", company:"Halcyon Systems", title:"Staff Software Engineer",
+    location:"Bengaluru, India", source:"greenhouse", has_jd:1, total:24,
+    recommendation:"Skip", status:null, folder:null,
+    stack:["Java","Distributed Systems","Kubernetes"],
+    matched_keywords:["Java"],
+    missing_keywords:["8+ years experience","Kubernetes","Team leadership"] }
+], stats: { new_jobs:6, applications:{Drafted:1,Applied:1,Interview:1,Rejected:0,Offer:0,Accepted:0},
+  interview_rate:0.33, new_companies:["Kestrel Labs","Quillfeather Analytics"] } };
+
+const STATUSES = ["Drafted","Applied","Interview","Rejected","Offer","Accepted"];
+let FILTER = "all";
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(window._tt);
+  window._tt = setTimeout(() => t.style.display = 'none', 3200);
+}
+
+function render() {
+  const s = DATA.stats, apps = s.applications;
+  const inPipe = ["Applied","Interview","Offer","Accepted"].reduce((n,k)=>n+apps[k],0);
+  document.getElementById('stats').innerHTML = [
+    ['Jobs tracked', DATA.jobs.length],
+    ['New this week', s.new_jobs],
+    ['Drafted', apps.Drafted],
+    ['In pipeline', inPipe],
+    ['Interview rate', Math.round(s.interview_rate*100)+'%'],
+    ['New companies', s.new_companies.length],
+  ].map(([k,v]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join('');
+
+  const q = document.getElementById('q').value.toLowerCase();
+  const jobs = DATA.jobs.filter(j => {
+    if (FILTER === 'strong' && !(j.total >= 70)) return false;
+    if (FILTER === 'new' && j.status) return false;
+    if (FILTER === 'pipeline' && !j.status) return false;
+    if (!q) return true;
+    return [j.company,j.title,j.location,j.stack.join(' ')].join(' ').toLowerCase().includes(q);
+  });
+
+  document.getElementById('list').innerHTML = jobs.length ? jobs.map(j => {
+    const cls = j.total >= 70 ? 's-hi' : j.total >= 50 ? 's-mid' : 's-lo';
+    const yes = j.matched_keywords.map(k=>`<span class="yes">+ ${esc(k)}</span>`).join('');
+    const no  = j.missing_keywords.map(k=>`<span class="no">- ${esc(k)}</span>`).join('');
+    return `<div class="job">
+      <div class="jobhead">
+        <div class="score ${cls}">${j.total}</div>
+        <div style="flex:1">
+          <div class="title">${esc(j.company)} — ${esc(j.title)}</div>
+          <div class="meta">${esc(j.location)} · ${esc(j.recommendation)}
+            · via ${esc(j.source)}${j.has_jd ? ' · JD cached' : ''}</div>
+        </div>
+        ${j.status ? `<span class="pill st-${esc(j.status)}">${esc(j.status)}</span>` : ''}
+      </div>
+      <div class="kw">${yes}${no}</div>
+      <div class="actions">
+        <button data-demo="draft">${j.status ? 'Re-draft' : 'Draft application'}</button>
+        <select data-demo="status">
+          <option value="">Set status...</option>
+          ${STATUSES.map(s2=>`<option ${j.status===s2?'selected':''}>${s2}</option>`).join('')}
+        </select>
+        <a href="https://github.com/radian1001/job-hunt-agent" data-demo="link">Open posting</a>
+        ${j.folder ? `<span class="meta">${esc(j.folder)}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty">No jobs match that filter.</div>';
+}
+
+document.getElementById('scanBtn').onclick = () => {
+  const bar = document.getElementById('bar');
+  bar.style.display = 'block';
+  bar.textContent = 'In the real dashboard this launches a full scan of your configured '
+    + 'careers pages and job boards (10-20 min), then the list refreshes with newly '
+    + 'scored roles.\n\nThis page is a static demo, so nothing is actually fetched.';
+  document.getElementById('tag').textContent = 'demo';
+  toast('Demo page — run it locally to scan for real jobs');
+};
+document.getElementById('refreshBtn').onclick = () => { render(); toast('Sample data reloaded'); };
+document.getElementById('q').oninput = render;
+document.querySelectorAll('.fbtn').forEach(b => b.onclick = () => { FILTER = b.dataset.f; render(); });
+document.addEventListener('click', e => {
+  const d = e.target.dataset && e.target.dataset.demo;
+  if (d === 'draft') toast('Locally this writes a tailored resume + cover letter for this role');
+  if (d === 'link') { e.preventDefault(); toast('Sample posting — links to the repo in this demo'); }
+});
+document.addEventListener('change', e => {
+  if (e.target.dataset && e.target.dataset.demo === 'status')
+    toast('Locally this updates the job\'s status in your SQLite pipeline');
+});
+render();
+</script></body></html>

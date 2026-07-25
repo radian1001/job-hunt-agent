@@ -200,8 +200,6 @@ PAGE = r"""<!doctype html>
     border:1px solid var(--line); border-radius:8px; padding:9px 12px; font:inherit; }
   .job { background:var(--panel); border:1px solid var(--line); border-radius:10px;
     padding:16px; margin-bottom:12px; }
-  .job.applied { border-left:3px solid var(--good); }
-  .job.drafted { border-left:3px solid var(--warn); }
   .jobhead { display:flex; gap:14px; align-items:flex-start; }
   .score { font-size:22px; font-weight:700; min-width:52px; text-align:center; }
   .s-hi { color:var(--good); } .s-mid { color:var(--warn); } .s-lo { color:var(--muted); }
@@ -217,6 +215,13 @@ PAGE = r"""<!doctype html>
     border:1px solid var(--line); border-radius:8px; padding:7px 10px; }
   .pill { font-size:11px; padding:3px 9px; border-radius:20px; background:var(--panel2);
     color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+  /* Pipeline state reads off the status pill itself rather than a card border. */
+  .pill.st-Drafted  { color:var(--warn); box-shadow:inset 0 0 0 1px rgba(210,153,34,.35); }
+  .pill.st-Applied,
+  .pill.st-Offer,
+  .pill.st-Accepted { color:var(--good); box-shadow:inset 0 0 0 1px rgba(63,185,80,.35); }
+  .pill.st-Interview { color:var(--accent); box-shadow:inset 0 0 0 1px rgba(79,140,255,.4); }
+  .pill.st-Rejected { color:var(--muted); }
   .empty { color:var(--muted); text-align:center; padding:40px; }
 </style></head><body>
 <header>
@@ -299,14 +304,13 @@ function render() {
   document.getElementById('list').innerHTML = jobs.length ? jobs.map(j => {
     const sc = j.total == null ? '--' : j.total;
     const cls = j.total >= 70 ? 's-hi' : j.total >= 50 ? 's-mid' : 's-lo';
-    const rowCls = j.status === 'Drafted' ? 'drafted' : j.status ? 'applied' : '';
     const drafting = (DATA.running||{})['draft:'+j.fingerprint];
     const busy = drafting && drafting.state === 'running';
     const yes = (j.matched_keywords||[]).slice(0,8)
       .map(k => `<span class="yes">+ ${esc(k)}</span>`).join('');
     const no = (j.missing_keywords||[]).slice(0,6)
       .map(k => `<span class="no">- ${esc(k)}</span>`).join('');
-    return `<div class="job ${rowCls}">
+    return `<div class="job">
       <div class="jobhead">
         <div class="score ${cls}">${esc(sc)}</div>
         <div style="flex:1">
@@ -315,7 +319,7 @@ function render() {
             ${j.recommendation ? ' · ' + esc(j.recommendation) : ''}
             · via ${esc(j.source)}${j.has_jd ? ' · JD cached' : ''}</div>
         </div>
-        ${j.status ? `<span class="pill">${esc(j.status)}</span>` : ''}
+        ${j.status ? `<span class="pill st-${esc(j.status)}">${esc(j.status)}</span>` : ''}
       </div>
       <div class="kw">${yes}${no}</div>
       <div class="actions">
