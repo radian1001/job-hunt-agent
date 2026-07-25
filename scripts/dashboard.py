@@ -97,17 +97,39 @@ def read_application(fingerprint):
     if not os.path.isdir(folder):
         return {"error": f"folder missing on disk: {row['folder']}"}
 
-    files = {}
+    files, pdfs = {}, []
     for name in sorted(os.listdir(folder)):
         path = os.path.join(folder, name)
-        if not os.path.isfile(path) or os.path.getsize(path) > MAX_FILE_BYTES:
+        if not os.path.isfile(path):
             continue
-        if os.path.splitext(name)[1].lower() not in (".md", ".txt", ".tex"):
-            continue
-        with open(path, encoding="utf-8", errors="replace") as f:
-            files[name] = f.read()
+        ext = os.path.splitext(name)[1].lower()
+        if ext == ".pdf":
+            pdfs.append(name)
+        elif ext in (".md", ".txt", ".tex") and os.path.getsize(path) <= MAX_FILE_BYTES:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                files[name] = f.read()
     return {"folder": row["folder"], "status": row["status"], "company": job["company"],
-            "title": job["title"], "files": files}
+            "title": job["title"], "files": files, "pdfs": pdfs}
+
+
+def resolve_in_applications(rel_path):
+    """Resolve a path and confirm it stays inside applications/. None if it escapes."""
+    base = os.path.realpath(project_path("applications"))
+    target = os.path.realpath(project_path(rel_path))
+    if target != base and not target.startswith(base + os.sep):
+        return None
+    return target
+
+
+def draft_folder(fingerprint):
+    con = db.connect()
+    try:
+        row = con.execute(
+            "SELECT a.folder FROM Applications a JOIN Jobs j ON j.id = a.job_id"
+            " WHERE j.fingerprint = ?", (fingerprint,)).fetchone()
+    finally:
+        con.close()
+    return row["folder"] if row and row["folder"] else None
 
 
 def claude_argv(prompt, extra_tools=()):
@@ -178,6 +200,35 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"error": "bad fingerprint"}, 400)
             return self.send_json(read_application(fp))
 
+        if self.path.startswith("/download"):
+            params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            fp = params.get("fingerprint", [""])[0]
+            name = params.get("name", [""])[0]
+            if not FINGERPRINT_RE.match(fp):
+                return self.send_json({"error": "bad fingerprint"}, 400)
+            # Only a bare filename is accepted, so "name" can never walk the tree.
+            if not name or name != os.path.basename(name):
+                return self.send_json({"error": "bad filename"}, 400)
+            folder = draft_folder(fp)
+            if not folder:
+                return self.send_json({"error": "no draft for this job"}, 404)
+            target = resolve_in_applications(os.path.join(folder, name))
+            if not target or not os.path.isfile(target):
+                return self.send_json({"error": "file not found"}, 404)
+            ctype = {".pdf": "application/pdf", ".tex": "application/x-tex",
+                     ".md": "text/markdown; charset=utf-8",
+                     ".txt": "text/plain; charset=utf-8"}.get(
+                         os.path.splitext(target)[1].lower(), "application/octet-stream")
+            with open(target, "rb") as f:
+                body = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Disposition",
+                             f'attachment; filename="{os.path.basename(target)}"')
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            return self.wfile.write(body)
+
         self.send_json({"error": "not found"}, 404)
 
     def do_POST(self):
@@ -194,6 +245,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"error": "bad fingerprint"}, 400)
             started = launch(f"draft:{fp}", "draft", f"Draft {fp[:8]}",
                              claude_argv(f"/draft-application {fp}"))
+            return self.send_json({"started": started})
+
+        if self.path == "/api/build-pdf":
+            fp = str(payload.get("fingerprint", ""))
+            if not FINGERPRINT_RE.match(fp):
+                return self.send_json({"error": "bad fingerprint"}, 400)
+            folder = draft_folder(fp)
+            if not folder or not resolve_in_applications(folder):
+                return self.send_json({"error": "no draft folder for this job"}, 404)
+            started = launch(f"pdf:{fp}", "pdf", f"PDF {fp[:8]}",
+                             [sys.executable, project_path("scripts", "build-pdf.py"),
+                              folder])
             return self.send_json({"started": started})
 
         if self.path == "/api/status":
@@ -283,6 +346,12 @@ PAGE = r"""<!doctype html>
     width:100%; max-width:900px; max-height:88vh; display:flex; flex-direction:column; }
   .sheethead { padding:16px 20px; border-bottom:1px solid var(--line); display:flex;
     gap:12px; align-items:center; flex-wrap:wrap; }
+  .dl { padding:14px 20px 0; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .dl a { background:var(--accent); color:#fff; text-decoration:none; font-size:13px;
+    font-weight:600; padding:8px 14px; border-radius:8px; }
+  .dl a.alt { background:var(--panel2); color:var(--text); border:1px solid var(--line);
+    font-weight:400; }
+  .dl span.hint { color:var(--muted); font-size:12px; }
   .tabs { display:flex; gap:6px; padding:12px 20px 0; flex-wrap:wrap; }
   .tabs button.active { border-color:var(--accent); color:var(--accent); }
   .sheetbody { padding:16px 20px 20px; overflow:auto; }
@@ -329,6 +398,7 @@ PAGE = r"""<!doctype html>
       <button id="mCopy">Copy this file</button>
       <button id="mClose">Close</button>
     </div>
+    <div class="dl" id="mDownloads"></div>
     <div class="tabs" id="mTabs"></div>
     <div class="sheetbody"><pre id="mBody"></pre></div>
   </div>
@@ -455,7 +525,7 @@ document.querySelectorAll('.fbtn').forEach(b => b.onclick = () => {
   FILTER = b.dataset.f; render();
 });
 // ---- drafted-application viewer ----
-let VIEW = {files:{}, current:null};
+let VIEW = {files:{}, current:null, fp:null};
 const modal = document.getElementById('modal');
 
 function paintView() {
@@ -466,16 +536,36 @@ function paintView() {
   document.getElementById('mBody').textContent = VIEW.files[VIEW.current] || '';
 }
 
+function paintDownloads(d) {
+  const dl = (name, alt) => `<a class="${alt ? 'alt' : ''}" href="/download?fingerprint=${
+    encodeURIComponent(VIEW.fp)}&name=${encodeURIComponent(name)}">${esc(name)}</a>`;
+  const pdfs = d.pdfs || [];
+  const texs = Object.keys(d.files || {}).filter(n => n.endsWith('.tex'));
+  let html = '';
+  if (pdfs.length) {
+    html += '<span class="hint">Upload to the portal:</span>' +
+      pdfs.map(n => dl(n)).join('');
+  } else {
+    html += `<button data-buildpdf="1">Build PDFs</button>
+      <span class="hint">Compiles the .tex resume and the cover letter into
+      submission-ready PDFs (needs pdflatex).</span>`;
+  }
+  if (texs.length) html += texs.map(n => dl(n, true)).join('');
+  document.getElementById('mDownloads').innerHTML = html;
+}
+
 async function openView(fp) {
   const r = await fetch('/api/application?fingerprint=' + encodeURIComponent(fp));
   const d = await r.json();
   if (d.error) { alert(d.error); return; }
+  VIEW.fp = fp;
   VIEW.files = d.files || {};
   // Show the cover letter first if present; it's what needs the closest read.
   const names = Object.keys(VIEW.files);
   VIEW.current = names.find(n => n.startsWith('cover_letter')) || names[0] || null;
   document.getElementById('mTitle').textContent = d.company + ' — ' + d.title;
   document.getElementById('mFolder').textContent = d.folder;
+  paintDownloads(d);
   paintView();
   modal.classList.add('open');
 }
@@ -497,6 +587,15 @@ document.addEventListener('click', async e => {
   const ds = e.target.dataset || {};
   if (ds.tab) { VIEW.current = ds.tab; paintView(); return; }
   if (ds.view) { openView(ds.view); return; }
+  if (ds.buildpdf) {
+    e.target.disabled = true; e.target.textContent = 'Building...';
+    await fetch('/api/build-pdf', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({fingerprint: VIEW.fp})});
+    // pdflatex runs twice per file; re-open when the PDFs have landed.
+    setTimeout(() => openView(VIEW.fp), 9000);
+    return;
+  }
   if (ds.draft) {
     await fetch('/api/draft', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({fingerprint: ds.draft})});

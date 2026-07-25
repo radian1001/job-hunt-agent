@@ -142,6 +142,23 @@ Takes 10-20 minutes depending on how many sources you listed. Watch your phone.
   `offer`, `rejected`, `accepted`) so Sunday's analytics stay honest.
 - **Pipeline at a glance:** `python scripts\db.py track --list` · `python scripts\db.py stats --since 7`
 
+### Getting submission-ready PDFs
+
+Job portals want PDFs, so the drafter's `.tex` resume and markdown cover letter get
+compiled locally:
+
+```powershell
+python scriptsuild-pdf.py applications\<company>-<date>
+```
+
+That produces `resume_<company>.pdf` and `cover_letter_<company>.pdf` in the same
+folder (and warns you if the resume spilled past one page). Requires `pdflatex`
+(MiKTeX or TeX Live) on PATH; without it, paste the `.tex` into overleaf.com instead.
+
+In the dashboard this is a button: open **View draft** on any drafted job, hit
+**Build PDFs**, then click either PDF to download it. The `.tex` is downloadable too
+if you want to tweak it in Overleaf first.
+
 ## Things to know
 
 - **Laptop must be on or asleep** at trigger time — the tasks wake it from sleep, but

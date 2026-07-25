@@ -71,8 +71,14 @@ direct job-posting URL.
    - Reorder bullets so the JD-relevant ones come first, and `\textbf{}` the JD's key
      technologies **only where they already appear** in the user's real experience.
      Bolding a skill the user hasn't used is the same violation as inventing a bullet.
-   - Keep it to one page. If content overflows, drop the least JD-relevant project or
-     bullet rather than shrinking the margins.
+   - ONE PAGE, non-negotiable at this experience level. The template fits roughly
+     18-20 total bullets across experience + projects. Budget: keep all three jobs
+     but at most 3 bullets each, and at most 2 projects with 1-2 bullets each — drop
+     the projects least related to the JD. Never shrink margins or font size to fit.
+   - After writing it, compile and check the page count:
+     `python scripts/build-pdf.py applications/<folder>` prints a NOTE if the PDF
+     came out longer than one page. If it does, cut the least JD-relevant bullets and
+     rebuild until it is one page.
    - Leave the header's PORTFOLIO_URL / LINKEDIN_URL / GITHUB_URL placeholders as-is
      unless `config/resume.md` states the real URLs.
    - The same traceability HARD RULE applies to this file.
