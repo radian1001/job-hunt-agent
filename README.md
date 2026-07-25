@@ -145,8 +145,10 @@ Takes 10-20 minutes depending on how many sources you listed. Watch your phone.
 ## Things to know
 
 - **Laptop must be on or asleep** at trigger time — the tasks wake it from sleep, but
-  a powered-off machine can't wake itself. Missed runs don't catch up (just run the
-  scan manually). Claude Code does NOT need to be open; the scheduler launches it.
+  a powered-off machine can't wake itself. If a run is missed because the machine was
+  off, it fires shortly after the next boot (the tasks use "start when available"), or
+  you can hit Scan Now in the dashboard. Claude Code does NOT need to be open; the
+  scheduler launches it.
 - **Usage limits:** runs consume your Claude plan. If a run logs
   "You've hit your session limit", it resumes working after the reset time.
 - **Logs** live in `logs\` (`scan.log`, `discovery.log`, `weekly.log`,
