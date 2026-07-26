@@ -203,8 +203,10 @@ agent framework.
 
 ## Dashboard (recommended if your machine isn't always on)
 
-Double-click `dashboard.cmd` (or run `python scripts\dashboard.py`) and open
-http://127.0.0.1:8765. It shows every scored job with its match breakdown, and gives
+Double-click the **Job Hunt Dashboard** shortcut on your desktop (create it with
+`powershell -File scripts\install-shortcut.ps1`), or run `dashboard.cmd` directly, then
+open http://127.0.0.1:8765. Keep the console window open while you use it; closing it
+stops the server. Clicking again while it's already running just reopens the browser. It shows every scored job with its match breakdown, and gives
 you a "Scan for jobs now" button, a Draft button per job, and a status dropdown per
 job, so you never need the terminal or Telegram to drive the pipeline. Reads the same
 SQLite database and runs the same skills as the scheduled jobs.
