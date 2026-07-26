@@ -8,3 +8,4 @@ digests/
 reports/
 config/favorites.txt
 config/searches.txt
+tmp_*
